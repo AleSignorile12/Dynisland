@@ -344,14 +344,14 @@ struct AirDropTile: View {
     }
 }
 
-/// Two stacked icons between AirDrop and the shelf: dropped files or clipboard history.
+/// Two stacked icons between AirDrop and the shelf: clipboard history (the default) or dropped files.
 struct ShelfSwitch: View {
     let clipboard: Bool
     let pick: (Bool) -> Void
     var body: some View {
         VStack(spacing: 4) {
-            icon("tray.full.fill", on: !clipboard, help: "Shelf") { pick(false) }
             icon("doc.on.clipboard", on: clipboard, help: "Clipboard history") { pick(true) }
+            icon("tray.full.fill", on: !clipboard, help: "Shelf") { pick(false) }
         }
         .padding(3)
         .background(.white.opacity(0.07), in: Capsule())

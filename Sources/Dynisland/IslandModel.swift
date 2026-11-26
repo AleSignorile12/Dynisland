@@ -99,7 +99,7 @@ final class IslandModel {
     var hud: HUD?
     var sideLimit = CGFloat.infinity // room the menus and status items leave beside the notch
     var selected = IslandSection.media
-    var shelfShowsClipboard = false // the Shelf page's second half: clipboard history instead of dropped files
+    var shelfShowsClipboard = true // the Shelf page's second half: clipboard history instead of dropped files
 
     var sectionOrder: [IslandSection] {
         didSet { UserDefaults.standard.set(sectionOrder.map(\.rawValue), forKey: "sectionOrder") }
@@ -259,7 +259,7 @@ final class IslandModel {
     /// Every time it opens, the island starts on the leftmost tab, whatever the tab order.
     func opened(_ open: Bool) {
         feedback(opened: open)
-        if open { selected = sections.first ?? .media }
+        if open { selected = sections.first ?? .media; shelfShowsClipboard = true }
     }
 
     func startOnboarding() {
