@@ -88,7 +88,7 @@ private struct SettingsRoot: View {
                 case .modules: ModulesSettings(model: model)
                 case .timers: TimerSettings()
                 case .nowPlaying: NowPlayingSettings()
-                case .agents: AgentSettings()
+                case .agents: AgentSettings(agents: model.agents)
                 case .scores: ScoresSettings(sports: model.sports)
                 case .captions: CaptionSettings(captions: model.captions, prompter: model.prompter)
                 case .permissions: PermissionsSettings()
@@ -476,17 +476,86 @@ private struct NowPlayingSettings: View {
 }
 
 private struct AgentSettings: View {
+    let agents: AgentService
     @Bindable var prefs = Prefs.shared
+
     var body: some View {
         Form {
             Section {
+                ForEach(agents.all) { a in AgentRow(agents: agents, agent: a) }
+                Button("Add an AI App…") {
+                    let panel = NSOpenPanel()
+                    panel.directoryURL = URL(fileURLWithPath: "/Applications")
+                    panel.allowedContentTypes = [.application]
+                    panel.prompt = "Add"
+                    if panel.runModal() == .OK, let url = panel.url { agents.add(appAt: url) }
+                }
+            } header: {
+                Text("Agents")
+            } footer: {
+                note("Claude Code and Codex are read from their session files; ChatGPT chats too (the ChatGPT app saves chats without a project in ~/Documents/Codex). Claude chats and apps you add are tracked by their Stop button, which needs Accessibility. The menu picks the app a click opens.")
+            }
+            Section {
                 Toggle("Show live activity while an agent works", isOn: $prefs.agentActivity)
                 Toggle("Show a card when an agent is done", isOn: $prefs.agentCards)
-            } footer: {
-                note("Tracks Claude Code, Claude, Codex and ChatGPT. Chats need Accessibility to spot the Stop button.")
             }
         }
         .formStyle(.grouped)
+    }
+}
+
+private struct AgentRow: View {
+    let agents: AgentService
+    let agent: AgentService.Agent
+
+    var body: some View {
+        HStack(spacing: 10) {
+            AgentIcon(agent: agent, size: 26)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(agent.name)
+                Text(how).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+            Spacer(minLength: 8)
+            linkMenu
+            if agent.kind == nil {
+                Button { agents.remove(agent.key) } label: { Image(systemName: "minus.circle.fill").foregroundStyle(.red) }
+                    .buttonStyle(.borderless).help("Remove \(agent.name)")
+            }
+            Toggle("", isOn: Binding(
+                get: { !agents.disabled.contains(agent.key) },
+                set: { on in if on { agents.disabled.remove(agent.key) } else { agents.disabled.insert(agent.key) } }
+            ))
+            .toggleStyle(.switch).labelsHidden().controlSize(.small)
+        }
+    }
+
+    private var how: String {
+        switch agent.kind {
+        case .claudeCode: "Session files · terminal and the Claude app's Code tab"
+        case .codex: "Session files · Codex CLI and project threads in ChatGPT"
+        case .chatgpt: "Session files · chats in the ChatGPT app"
+        case .claude: "Stop button · Claude app chats"
+        case nil: "Stop button · added by you"
+        }
+    }
+
+    private var linkMenu: some View {
+        let linked = agents.links[agent.key]
+        let current = agents.appURL(for: agent).map { FileManager.default.displayName(atPath: $0.path).replacingOccurrences(of: ".app", with: "") }
+        return Menu {
+            if linked != nil { Button("Its own app") { agents.links[agent.key] = nil } }
+            Button("Choose App…") {
+                let panel = NSOpenPanel()
+                panel.directoryURL = URL(fileURLWithPath: "/Applications")
+                panel.allowedContentTypes = [.application]
+                panel.prompt = "Link"
+                if panel.runModal() == .OK, let url = panel.url, let id = Bundle(url: url)?.bundleIdentifier { agents.links[agent.key] = id }
+            }
+        } label: {
+            Text(current.map { "Opens \($0)" } ?? "Not installed")
+        }
+        .fixedSize()
+        .help("App opened when you click this agent in the island")
     }
 }
 

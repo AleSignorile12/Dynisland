@@ -162,7 +162,7 @@ final class IslandModel {
         timer.onDone = { [weak self] title, subtitle in self?.show(Banner(icon: "timer", title: title, subtitle: subtitle, tint: Prefs.shared.accent)) }
         agents.onFinish = { [weak self] a in
             guard Prefs.shared.agentCards else { return }
-            self?.show(Banner(icon: a.kind.symbol, title: "\(a.kind.name) is done", subtitle: a.project.isEmpty ? "Reply ready" : a.project, tint: Prefs.shared.accent, image: a.icon))
+            self?.show(Banner(icon: a.symbol, title: "\(a.name) is done", subtitle: a.project.isEmpty ? "Reply ready" : a.project, tint: Prefs.shared.accent, image: a.icon))
         }
         audio.onArrow = { [weak self] step in // ← → switch pages while the pointer is on the open island
             guard let self, hovering, !dragging else { return false }
@@ -224,8 +224,11 @@ final class IslandModel {
         return FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
     }
 
-    func open(_ agent: AgentKind) {
-        if !agent.open() { show(Banner(icon: agent.symbol, title: "App not installed", subtitle: agent.name)) }
+    func open(_ agent: AgentService.Agent) {
+        guard let url = agents.appURL(for: agent) else {
+            show(Banner(icon: agent.symbol, title: "App not installed", subtitle: agent.name)); return
+        }
+        NSWorkspace.shared.openApplication(at: url, configuration: .init())
     }
 
     // MARK: Opening
