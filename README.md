@@ -27,14 +27,26 @@
 
 ## Contents
 
-1. [What it does](#what-it-does)
-2. [How it works](#how-it-works)
-3. [Design](#design)
-4. [Privacy](#privacy)
-5. [Technologies](#technologies)
-6. [Project structure](#project-structure)
-7. [Build and run](#build-and-run)
-8. [Status: what is verified and what isn't](#status-what-is-verified-and-what-isnt)
+1. [Install](#install)
+2. [What it does](#what-it-does)
+3. [How it works](#how-it-works)
+4. [Design](#design)
+5. [Privacy](#privacy)
+6. [Technologies](#technologies)
+7. [Project structure](#project-structure)
+8. [Build and run](#build-and-run)
+9. [Status: what is verified and what isn't](#status-what-is-verified-and-what-isnt)
+
+---
+
+## Install
+
+1. Download `Dynisland-<version>.dmg` from the [Releases](https://github.com/AleSignorile12/Dynisland/releases) page.
+2. Open it and drag **Dynisland** onto **Applications**.
+3. Open it from Applications. On first launch the island grows into a short welcome tour.
+
+Releases are signed with a Developer ID and notarised by Apple, so macOS opens them without warnings. Dynisland isn't on
+the Mac App Store: the App Store requires the App Sandbox, which would remove several features.
 
 ---
 
@@ -141,6 +153,7 @@ Dynisland/
 ├── Bridge/NowPlaying.m     Now Playing helper
 ├── Dynisland.xcodeproj
 ├── build-app.sh            Command-line build into ./Dynisland.app
+├── release.sh              Signed, notarised .dmg and GitHub release (see RELEASING.md)
 └── .github/                Banner and README screenshots
 ```
 
@@ -156,6 +169,8 @@ open Dynisland.app
 ```
 
 Opening the app again while it runs shows Settings.
+
+To make a signed, notarised `.dmg` and publish it on GitHub, see [RELEASING.md](RELEASING.md) (`PUBLISH=1 ./release.sh`).
 
 ---
 

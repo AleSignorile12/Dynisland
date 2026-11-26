@@ -74,7 +74,7 @@
 			outputPaths = ("$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/libNowPlaying.dylib");
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -e\nOUT=\"$SCRIPT_OUTPUT_FILE_0\"\nxcrun clang -dynamiclib -fobjc-arc -framework Foundation -arch arm64 -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET \"$SRCROOT/Bridge/NowPlaying.m\" -o \"$OUT\"\ncodesign --force --sign - \"$OUT\"\n";
+			shellScript = "set -e\nOUT=\"$SCRIPT_OUTPUT_FILE_0\"\nxcrun clang -dynamiclib -fobjc-arc -framework Foundation -arch arm64 -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET \"$SRCROOT/Bridge/NowPlaying.m\" -o \"$OUT\"\n# Same identity as the app (Developer ID for releases); ad-hoc when the build is unsigned. The release script adds --timestamp.\nID=\"${EXPANDED_CODE_SIGN_IDENTITY:--}\"\nif [ \"$ID\" = \"-\" ]; then codesign --force --sign - \"$OUT\"; else codesign --force --sign \"$ID\" --options runtime $OTHER_CODE_SIGN_FLAGS \"$OUT\"; fi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
