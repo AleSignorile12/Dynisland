@@ -66,8 +66,9 @@ struct IslandView: View {
         return .none
     }
 
-    private var ear: CGFloat { model.expanded ? 14 : model.banner != nil ? 10 : 6 }
-    private var bottom: CGFloat { model.expanded ? 28 : model.banner != nil ? 22 : model.notch.height * 0.32 }
+    private var touring: Bool { model.onboarding != nil }
+    private var ear: CGFloat { model.expanded || touring ? 14 : model.banner != nil ? 10 : 6 }
+    private var bottom: CGFloat { touring ? 32 : model.expanded ? 28 : model.banner != nil ? 22 : model.notch.height * 0.32 }
     /// Width of each wing beside the notch (symmetric so the notch stays centred), capped by the free menu-bar room.
     private var side: CGFloat {
         let want: CGFloat = switch activity {
@@ -79,6 +80,7 @@ struct IslandView: View {
         return room < 24 ? 0 : room
     }
     private var size: CGSize {
+        if touring { return CGSize(width: 620, height: model.notch.height + 300) }
         if model.expanded { return model.expandedSize }
         if model.banner != nil { return CGSize(width: max(model.notch.width + 220, 420), height: model.notch.height + 58) }
         return CGSize(width: model.notch.width + side * 2, height: model.notch.height)
@@ -86,9 +88,10 @@ struct IslandView: View {
 
     var body: some View {
         ZStack(alignment: .top) {
-            NotchShape(ear: ear, bottom: bottom).fill(model.expanded || model.banner != nil ? Prefs.shared.island : .black) // closed stays black to blend with the notch
+            NotchShape(ear: ear, bottom: bottom).fill(model.expanded || touring || model.banner != nil ? Prefs.shared.island : .black) // closed stays black to blend with the notch
             Group {
-                if model.expanded { expanded.transition(.blurReplace) }
+                if touring { OnboardingIsland(model: model).transition(.blurReplace) }
+                else if model.expanded { expanded.transition(.blurReplace) }
                 else if let b = model.banner { BannerView(banner: b, notchHeight: model.notch.height).transition(.blurReplace) }
                 else { compact.transition(.blurReplace) }
             }
@@ -106,6 +109,7 @@ struct IslandView: View {
         }
         .animation(model.expanded ? .islandOpen : .islandClose, value: model.expanded)
         .animation(.islandOpen, value: model.banner)
+        .animation(.islandOpen, value: touring)
         .animation(.islandOpen, value: activity.kind)
         .animation(.snappy, value: model.zone)
         .animation(.snappy, value: model.shownSection)

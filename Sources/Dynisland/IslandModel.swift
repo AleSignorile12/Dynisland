@@ -91,6 +91,7 @@ final class IslandModel {
     var shelf: [ShelfItem] = []
     var landing = 0        // dropped items still arriving (a screenshot's promised file takes a moment); shown as loading tiles
     var holdOpen = false   // keeps the island open briefly after a drop so you see the item land
+    var onboarding: Int?   // welcome tour step while the tour runs inside the island
     var pinnedOpen = false // "Keep it open after I click it": stays open until a click elsewhere
     var downloads: [DownloadItem] = []
     var charging: Int? // battery % while the charging activity is on screen
@@ -232,6 +233,7 @@ final class IslandModel {
     /// Called on every mouse move. Opens the island once the pointer comes within `openDistance` of the closed island
     /// (half that sideways, so menus beside the notch stay reachable) and closes it when the pointer leaves the open one.
     func mouseMoved(to p: CGPoint) {
+        guard onboarding == nil else { return } // the tour keeps the island open until it's done
         let inside: Bool
         if expanded {
             let w = expandedSize.width + 28 // the open island's ears add 14 pt on each side
@@ -250,6 +252,19 @@ final class IslandModel {
     func opened(_ open: Bool) {
         feedback(opened: open)
         if open { selected = sections.first ?? .media }
+    }
+
+    func startOnboarding() {
+        hovering = false
+        pinnedOpen = false
+        onboarding = 0
+    }
+
+    /// Ends the tour; it never comes back on its own (Settings → General → Welcome tour shows it again).
+    func finishOnboarding() {
+        UserDefaults.standard.set(true, forKey: "onboarded")
+        onboarding = nil
+        peek()
     }
 
     /// Opens the island for a moment, e.g. at the end of onboarding, to show where it lives.
@@ -272,6 +287,7 @@ final class IslandModel {
     }
 
     func clicked() {
+        guard onboarding == nil else { return }
         if !expanded { hoverTask?.cancel(); hovering = true }
         if Prefs.shared.keepOpenAfterClick { pinnedOpen = true }
     }

@@ -5,40 +5,41 @@ import ServiceManagement
 import Speech
 import SwiftUI
 
-/// First-launch welcome: what the island does, which pages to keep, the look, and the permissions, each with a reason.
-/// Shown once (closing it early counts); Settings → General → Welcome tour brings it back.
-enum Onboarding {
-    static func window(model: IslandModel, finish: @escaping () -> Void) -> NSWindow {
-        let w = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 620, height: 520),
-                         styleMask: [.titled, .closable, .fullSizeContentView], backing: .buffered, defer: false)
-        w.titlebarAppearsTransparent = true
-        w.titleVisibility = .hidden
-        w.isMovableByWindowBackground = true
-        w.isReleasedWhenClosed = false
-        w.contentView = NSHostingView(rootView: OnboardingView(model: model, finish: finish))
-        w.center()
-        return w
-    }
-}
-
-private struct OnboardingView: View {
+/// First-launch welcome tour, drawn inside the island itself: it grows out of the notch into a large card and walks
+/// through what it does, which pages to keep, the look (the island recolours live) and the permissions, each with a reason.
+/// Skipping counts as done; Settings → General → Welcome tour shows it again.
+struct OnboardingIsland: View {
     let model: IslandModel
-    let finish: () -> Void
-    @State private var page = 0
     @State private var forward = true
     private let pages = 6
+    private var page: Int { model.onboarding ?? 0 }
 
     var body: some View {
         VStack(spacing: 0) {
+            HStack(spacing: 0) { // the row beside the camera
+                HStack(spacing: 5) {
+                    ForEach(0..<pages, id: \.self) { i in
+                        Capsule().fill(i == page ? Prefs.shared.accent : .white.opacity(0.25)).frame(width: i == page ? 16 : 6, height: 6)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading).padding(.leading, 22)
+                Color.clear.frame(width: model.notch.width)
+                Button("Skip") { model.finishOnboarding() }
+                    .buttonStyle(.plain).font(.system(size: 11, weight: .medium)).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .trailing).padding(.trailing, 22)
+                    .opacity(page == pages - 1 ? 0 : 1)
+            }
+            .frame(height: model.notch.height)
+
             ZStack {
                 Group {
                     switch page {
-                    case 0: WelcomePage()
-                    case 1: HowPage()
-                    case 2: PagesPage(model: model)
-                    case 3: LookPage()
-                    case 4: PermissionsPage()
-                    default: DonePage()
+                    case 0: WelcomeStep()
+                    case 1: HowStep()
+                    case 2: PagesStep(model: model)
+                    case 3: LookStep()
+                    case 4: PermissionsStep()
+                    default: DoneStep()
                     }
                 }
                 .id(page)
@@ -49,204 +50,225 @@ private struct OnboardingView: View {
             .clipped()
 
             HStack {
-                Button("Back") { go(-1) }.opacity(page == 0 ? 0 : 1).disabled(page == 0)
+                pill("Back", primary: false) { go(-1) }.opacity(page == 0 ? 0 : 1).disabled(page == 0)
                 Spacer()
-                HStack(spacing: 7) {
-                    ForEach(0..<pages, id: \.self) { i in
-                        Capsule().fill(i == page ? Color.primary : Color.secondary.opacity(0.35)).frame(width: i == page ? 18 : 7, height: 7)
-                    }
+                pill(page == pages - 1 ? "Start Using Dynisland" : "Continue", primary: true) {
+                    page == pages - 1 ? model.finishOnboarding() : go(1)
                 }
-                Spacer()
-                Button(page == pages - 1 ? "Start Using Dynisland" : "Continue") { page == pages - 1 ? finish() : go(1) }
-                    .keyboardShortcut(.defaultAction)
-                    .buttonStyle(.borderedProminent)
             }
-            .controlSize(.large)
-            .padding(20)
+            .padding(.horizontal, 22)
+            .padding(.bottom, 18)
         }
-        .frame(width: 620, height: 520)
         .animation(.spring(duration: 0.45, bounce: 0.15), value: page)
     }
 
     private func go(_ d: Int) {
         forward = d > 0
-        page = min(max(page + d, 0), pages - 1)
+        model.onboarding = min(max(page + d, 0), pages - 1)
+    }
+
+    private func pill(_ title: String, primary: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title).font(.system(size: 12, weight: .semibold))
+                .padding(.horizontal, 16).frame(height: 30)
+                .foregroundStyle(primary ? Color.black : .white)
+                .background(primary ? AnyShapeStyle(Prefs.shared.accent) : AnyShapeStyle(.white.opacity(0.12)), in: Capsule())
+        }
+        .buttonStyle(.plain)
     }
 }
 
-private struct Header: View {
-    let icon: String
+private struct StepTitle: View {
     let title: String
     let subtitle: String
     var body: some View {
-        VStack(spacing: 8) {
-            Image(systemName: icon).font(.system(size: 30, weight: .semibold)).foregroundStyle(Prefs.shared.accent)
-            Text(title).font(.system(size: 24, weight: .bold))
-            Text(subtitle).font(.callout).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 440)
+        VStack(spacing: 4) {
+            Text(title).font(.system(size: 19, weight: .bold))
+            Text(subtitle).font(.system(size: 11.5)).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 460)
         }
-        .padding(.top, 44)
+        .padding(.top, 10)
     }
 }
 
-private struct WelcomePage: View {
+private struct WelcomeStep: View {
     @State private var shown = false
     var body: some View {
-        VStack(spacing: 18) {
-            Spacer()
-            Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 112, height: 112)
-                .scaleEffect(shown ? 1 : 0.6).opacity(shown ? 1 : 0)
-            Text("Welcome to Dynisland").font(.system(size: 30, weight: .bold))
-            Text("Your notch becomes a live island: music, files, timers, AI agents, scores and more, right where your eyes already are.")
-                .font(.title3).foregroundStyle(.secondary).multilineTextAlignment(.center).frame(maxWidth: 460)
-            Spacer()
+        HStack(spacing: 22) {
+            Image(nsImage: NSApp.applicationIconImage).resizable().frame(width: 92, height: 92)
+                .scaleEffect(shown ? 1 : 0.5).opacity(shown ? 1 : 0)
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Welcome to Dynisland").font(.system(size: 24, weight: .bold))
+                Text("Your notch is now a live island: music, files, timers, AI agents, scores and more, right where your eyes already are.")
+                    .font(.system(size: 13)).foregroundStyle(.secondary).frame(maxWidth: 340, alignment: .leading)
+            }
         }
-        .onAppear { withAnimation(.spring(duration: 0.7, bounce: 0.35).delay(0.1)) { shown = true } }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { withAnimation(.spring(duration: 0.7, bounce: 0.35).delay(0.15)) { shown = true } }
     }
 }
 
-private struct HowPage: View {
+private struct HowStep: View {
     var body: some View {
-        VStack(spacing: 26) {
-            Header(icon: "hand.point.up.left.fill", title: "Meet the island", subtitle: "Everything lives in the black shape around your camera.")
-            VStack(alignment: .leading, spacing: 16) {
-                tip("cursorarrow.motionlines", "Bring the pointer near the notch", "It opens on its own and closes when you move away.")
-                tip("arrow.left.arrow.right", "Switch pages", "Click the icons at the top, or press ← → while the pointer is on it.")
-                tip("tray.and.arrow.down.fill", "Drop anything on it", "Files, links and text land on the shelf. The left tile sends them by AirDrop.")
-                tip("rectangle.inset.topright.filled", "Live activities", "Music, timers, AI agents, downloads and live scores show beside the notch while it's closed.")
-                tip("contextualmenu.and.cursorarrow", "Right-click for Settings", "Or use the gear page inside the island.")
+        VStack(spacing: 14) {
+            StepTitle(title: "Meet the island", subtitle: "Everything lives in this black shape around your camera.")
+            Grid(horizontalSpacing: 22, verticalSpacing: 14) {
+                GridRow {
+                    tip("cursorarrow.motionlines", "Come close", "It opens when the pointer nears the notch, closes when you leave.")
+                    tip("arrow.left.arrow.right", "Switch pages", "Click the icons at the top, or press ← → while on it.")
+                }
+                GridRow {
+                    tip("tray.and.arrow.down.fill", "Drop anything", "Files, links and text land on the shelf, or go by AirDrop.")
+                    tip("rectangle.inset.topright.filled", "Live activities", "Music, timers, agents and scores sit beside the notch.")
+                }
             }
-            .frame(maxWidth: 460)
-            Spacer()
+            .padding(.horizontal, 30)
+            Spacer(minLength: 0)
         }
     }
     private func tip(_ icon: String, _ title: String, _ text: String) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Image(systemName: icon).font(.system(size: 18)).foregroundStyle(Prefs.shared.accent).frame(width: 28)
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: icon).font(.system(size: 16)).foregroundStyle(Prefs.shared.accent).frame(width: 22)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline)
-                Text(text).font(.callout).foregroundStyle(.secondary)
+                Text(title).font(.system(size: 12, weight: .semibold))
+                Text(text).font(.system(size: 10.5)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-private struct PagesPage: View {
+private struct PagesStep: View {
     let model: IslandModel
     var body: some View {
-        VStack(spacing: 22) {
-            Header(icon: "square.grid.2x2.fill", title: "Pick your pages", subtitle: "Keep only what you use. You can change this and the order later in Settings → Modules.")
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
+        VStack(spacing: 12) {
+            StepTitle(title: "Pick your pages", subtitle: "Keep only what you use. Order and more options are in Settings → Modules.")
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
                 ForEach(model.sectionOrder) { s in
                     let on = !model.disabledSections.contains(s)
                     Button {
                         if on { model.disabledSections.insert(s) } else { model.disabledSections.remove(s) }
                     } label: {
-                        HStack(spacing: 8) {
-                            ModuleIcon(section: s).saturation(on ? 1 : 0).opacity(on ? 1 : 0.5)
-                            Text(s.title).font(.callout).lineLimit(1).minimumScaleFactor(0.8)
+                        HStack(spacing: 7) {
+                            ModuleIcon(section: s).scaleEffect(0.8).frame(width: 22, height: 22)
+                                .saturation(on ? 1 : 0).opacity(on ? 1 : 0.45)
+                            Text(s.title).font(.system(size: 10.5, weight: .medium)).lineLimit(1).minimumScaleFactor(0.75)
+                                .foregroundStyle(on ? .white : .secondary)
                             Spacer(minLength: 0)
-                            Image(systemName: on ? "checkmark.circle.fill" : "circle").foregroundStyle(on ? Prefs.shared.accent : .secondary)
                         }
-                        .padding(8)
-                        .background(.quaternary.opacity(on ? 1 : 0.4), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .padding(.horizontal, 7).frame(height: 32)
+                        .background(.white.opacity(on ? 0.12 : 0.04), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Prefs.shared.accent.opacity(on ? 0.6 : 0), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                 }
             }
-            .frame(maxWidth: 540)
-            Spacer()
+            .padding(.horizontal, 24)
+            Spacer(minLength: 0)
         }
     }
 }
 
-private struct LookPage: View {
+private struct LookStep: View {
     @Bindable var prefs = Prefs.shared
     var body: some View {
-        VStack(spacing: 22) {
-            Header(icon: "paintpalette.fill", title: "Make it yours", subtitle: "Pick a look. The closed island always stays black so it blends into the notch.")
-            IslandPreview()
+        VStack(spacing: 14) {
+            StepTitle(title: "Make it yours", subtitle: "Pick a look: the island changes as you choose. When closed it stays black to blend into the notch.")
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
-                ForEach(Prefs.presets) { PresetButton(preset: $0) }
+                ForEach(Prefs.presets) { p in
+                    let on = p.island == prefs.islandHex && p.accent == prefs.accentHex
+                    Button { prefs.apply(p) } label: {
+                        HStack(spacing: 7) {
+                            Circle().fill(Color(hex: p.accent)).frame(width: 12, height: 12)
+                            Text(p.name).font(.system(size: 11, weight: .medium))
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 10).frame(height: 30)
+                        .background(Color(hex: p.island).opacity(0.9), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .strokeBorder(on ? Color(hex: p.accent) : .white.opacity(0.15), lineWidth: on ? 2 : 1))
+                    }
+                    .buttonStyle(.plain)
+                }
             }
-            .frame(maxWidth: 480)
-            Picker("Open size", selection: $prefs.size) {
-                ForEach(Prefs.Size.allCases) { Text($0.rawValue.capitalized).tag($0) }
+            .padding(.horizontal, 40)
+            Picker("", selection: $prefs.size) {
+                ForEach(Prefs.Size.allCases) { Text($0.rawValue.capitalized + " size").tag($0) }
             }
-            .pickerStyle(.segmented).frame(width: 300)
-            Spacer()
+            .pickerStyle(.segmented).labelsHidden().frame(width: 300)
+            Spacer(minLength: 0)
         }
+        .animation(.islandOpen, value: prefs.accentHex)
     }
 }
 
-private struct PermissionsPage: View {
+private struct PermissionsStep: View {
     var body: some View {
-        VStack(spacing: 18) {
-            Header(icon: "hand.raised.fill", title: "Permissions", subtitle: "Each one unlocks a feature. All optional: skip any, and grant it later from Settings → Permissions.")
+        VStack(spacing: 10) {
+            StepTitle(title: "Permissions", subtitle: "Each one unlocks a feature. All optional: grant any later in Settings → Permissions.")
             TimelineView(.periodic(from: .now, by: 1)) { _ in // statuses refresh as you grant them
                 VStack(spacing: 0) {
-                    row("keyboard", "Accessibility", "Volume & brightness keys, ← →, notifications, AI chats", AXIsProcessTrusted()) {
+                    row("keyboard", "Accessibility", "Media keys, ← →, notifications, AI chats", AXIsProcessTrusted()) {
                         _ = AXIsProcessTrustedWithOptions([kAXTrustedCheckOptionPrompt.takeUnretainedValue(): true] as CFDictionary)
                     }
-                    Divider()
                     row("camera.fill", "Camera", "Mirror", AVCaptureDevice.authorizationStatus(for: .video) == .authorized) {
                         AVCaptureDevice.requestAccess(for: .video) { _ in }
                     }
-                    Divider()
                     row("calendar", "Calendars", "Calendar page", EKEventStore.authorizationStatus(for: .event) == .fullAccess) {
                         EKEventStore().requestFullAccessToEvents { _, _ in }
                     }
-                    Divider()
                     row("waveform", "Speech Recognition", "Live captions", SFSpeechRecognizer.authorizationStatus() == .authorized) {
                         SFSpeechRecognizer.requestAuthorization { _ in }
                     }
-                    Divider()
-                    row("speaker.wave.2.fill", "System Audio Recording", "Volume mixer and captions (macOS asks on first use)", nil) {
+                    row("speaker.wave.2.fill", "System Audio", "Mixer and captions (asked on first use)", nil) {
                         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_AudioCapture")!)
                     }
                 }
-                .padding(.horizontal, 14)
-                .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .frame(maxWidth: 520)
+                .padding(.horizontal, 12)
+                .background(.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.horizontal, 40)
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
     }
 
     private func row(_ icon: String, _ name: String, _ use: String, _ granted: Bool?, ask: @escaping () -> Void) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon).foregroundStyle(Prefs.shared.accent).frame(width: 24)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(name).font(.headline)
-                Text(use).font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer()
+        HStack(spacing: 10) {
+            Image(systemName: icon).font(.system(size: 12)).foregroundStyle(Prefs.shared.accent).frame(width: 18)
+            Text(name).font(.system(size: 11.5, weight: .semibold))
+            Text(use).font(.system(size: 10)).foregroundStyle(.secondary).lineLimit(1)
+            Spacer(minLength: 6)
             if granted == true {
-                Label("Allowed", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.callout)
+                Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
             } else {
-                Button(granted == nil ? "Open…" : "Allow", action: ask)
+                Button(action: ask) {
+                    Text(granted == nil ? "Open…" : "Allow").font(.system(size: 10.5, weight: .semibold))
+                        .padding(.horizontal, 10).frame(height: 20)
+                        .background(.white.opacity(0.14), in: Capsule())
+                }
+                .buttonStyle(.plain)
             }
         }
-        .padding(.vertical, 9)
+        .frame(height: 29)
     }
 }
 
-private struct DonePage: View {
+private struct DoneStep: View {
     @State private var atLogin = SMAppService.mainApp.status == .enabled
     var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-            Image(systemName: "checkmark.seal.fill").font(.system(size: 64)).foregroundStyle(Prefs.shared.accent)
+        VStack(spacing: 10) {
+            Spacer(minLength: 0)
+            Image(systemName: "checkmark.seal.fill").font(.system(size: 44)).foregroundStyle(Prefs.shared.accent)
                 .symbolEffect(.bounce, value: atLogin)
-            Text("You're all set").font(.system(size: 28, weight: .bold))
-            Text("The island will open for a moment so you can see where it lives.")
-                .font(.callout).foregroundStyle(.secondary)
+            Text("You're all set").font(.system(size: 22, weight: .bold))
+            Text("Bring the pointer to the notch any time. Right-click the island for Settings.")
+                .font(.system(size: 12)).foregroundStyle(.secondary)
             Toggle("Launch Dynisland at login", isOn: Binding(get: { atLogin }, set: { on in
                 _ = try? on ? SMAppService.mainApp.register() : SMAppService.mainApp.unregister()
                 atLogin = SMAppService.mainApp.status == .enabled
             }))
-            .toggleStyle(.switch)
-            .padding(.top, 6)
-            Spacer()
+            .toggleStyle(.switch).controlSize(.small).font(.system(size: 12))
+            .padding(.top, 4)
+            Spacer(minLength: 0)
         }
     }
 }

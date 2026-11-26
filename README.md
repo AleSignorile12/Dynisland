@@ -63,7 +63,7 @@ While it's closed:
 
 It opens as soon as the pointer comes near the notch (the distance is adjustable in Settings → General), always on the leftmost tab. Use ← and → to switch pages while the pointer is on the open island.
 
-On first launch a short welcome tour shows how it works, lets you pick your pages and a look, and asks for each permission with a reason. Settings → General → Welcome tour brings it back.
+On first launch the island grows into a welcome tour that shows how it works, lets you pick your pages and a look, and asks for each permission with a reason. Settings → General → Welcome tour brings it back.
 
 ---
 
@@ -136,7 +136,7 @@ Dynisland/
 │   ├── Clipboard.swift     Clipboard history
 │   ├── Notifications.swift Notification banners
 │   ├── Settings.swift      The Settings window
-│   ├── Onboarding.swift    First-launch welcome tour
+│   ├── Onboarding.swift    First-launch welcome tour, inside the island
 │   └── Prefs.swift         Saved preferences
 ├── Bridge/NowPlaying.m     Now Playing helper
 ├── Dynisland.xcodeproj

@@ -7,7 +7,7 @@ final class NotchPanel: NSPanel {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    static let canvas = CGSize(width: 680, height: 280) // room for the expanded island + spring overshoot
+    static let canvas = CGSize(width: 680, height: 380) // room for the welcome tour (the tallest island) + spring overshoot
     let model = IslandModel()
     var panel: NotchPanel!
     var screen: NSScreen?
@@ -134,22 +134,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return CGRect(origin: point, size: size)
     }
 
-    var onboardingWindow: NSWindow?
-
+    /// The welcome tour runs inside the island itself.
     func showOnboarding() {
-        if onboardingWindow == nil {
-            let w = Onboarding.window(model: model) { [weak self] in
-                self?.onboardingWindow?.close()
-                self?.model.peek()
-            }
-            NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: w, queue: .main) { [weak self] _ in
-                UserDefaults.standard.set(true, forKey: "onboarded") // closing it early counts too: it never comes back on its own
-                self?.onboardingWindow = nil
-            }
-            onboardingWindow = w
-        }
-        NSApp.activate(ignoringOtherApps: true)
-        onboardingWindow?.makeKeyAndOrderFront(nil)
+        model.startOnboarding()
     }
 
     func showSettings() {
