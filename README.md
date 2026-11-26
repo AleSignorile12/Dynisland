@@ -70,6 +70,7 @@ Pages in the open island (each one can be turned off or reordered in Settings):
 - **AI Agents.** Claude Code, Claude, Codex and ChatGPT: which ones are working, and a banner when one is done.
 - **Sports.** Live scores.
 - **Captions & Prompter.** Live subtitles for whatever your Mac is playing, and a teleprompter right under the camera.
+- **Color Picker.** An eyedropper for any pixel on screen: copies HEX, RGB or HSL and keeps your last 12 colours.
 
 While it's closed:
 
@@ -150,6 +151,7 @@ Dynisland/
 │   ├── Prompter.swift      Teleprompter
 │   ├── Agents.swift        AI agent status
 │   ├── Online.swift        Speed test and sports
+│   ├── Colors.swift        Color picker
 │   ├── Clipboard.swift     Clipboard history
 │   ├── Notifications.swift Notification banners
 │   ├── Settings.swift      The Settings window

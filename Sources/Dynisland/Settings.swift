@@ -417,7 +417,7 @@ extension IslandSection {
         default: "no permissions"
         }
     }
-    var clickable: Bool { self != .agents && self != .settings }
+    var clickable: Bool { self != .agents && self != .settings && self != .colors }
     var tint: Color {
         switch self {
         case .media: .pink
@@ -431,6 +431,7 @@ extension IslandSection {
         case .agents: .orange
         case .sports: .green
         case .captions: .teal
+        case .colors: .yellow
         case .settings: .gray
         }
     }

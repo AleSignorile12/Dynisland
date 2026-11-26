@@ -20,7 +20,7 @@ enum DropZone { case airdrop, shelf }
 
 /// A page of the expanded island. Order and visibility are user settings.
 enum IslandSection: String, CaseIterable, Identifiable {
-    case media, shelf, calendar, timer, mirror, controls, system, mixer, agents, sports, captions, settings
+    case media, shelf, calendar, timer, mirror, controls, system, mixer, agents, sports, captions, colors, settings
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -35,6 +35,7 @@ enum IslandSection: String, CaseIterable, Identifiable {
         case .agents: "AI Agents"
         case .sports: "Sports"
         case .captions: "Captions & Prompter"
+        case .colors: "Color Picker"
         case .settings: "Settings"
         }
     }
@@ -51,6 +52,7 @@ enum IslandSection: String, CaseIterable, Identifiable {
         case .agents: "sparkles"
         case .sports: "sportscourt.fill"
         case .captions: "captions.bubble.fill"
+        case .colors: "eyedropper"
         case .settings: "gearshape.fill"
         }
     }
@@ -136,6 +138,7 @@ final class IslandModel {
     let sports = SportsService()
     let captions = CaptionsService()
     let prompter = PrompterService()
+    let colors = ColorPickerService()
     @ObservationIgnored let audio = AudioService()
     @ObservationIgnored let notifications = NotificationWatcher()
 
@@ -159,6 +162,7 @@ final class IslandModel {
         disabledSections = Set((UserDefaults.standard.stringArray(forKey: "disabledSections") ?? []).compactMap(IslandSection.init))
         clickApps = UserDefaults.standard.dictionary(forKey: "clickApps") as? [String: String] ?? [:]
 
+        colors.onPick = { [weak self] hex in self?.show(Banner(icon: "eyedropper", title: "\(hex) copied", tint: Color(hex: hex))) }
         timer.onDone = { [weak self] title, subtitle in self?.show(Banner(icon: "timer", title: title, subtitle: subtitle, tint: Prefs.shared.accent)) }
         agents.onFinish = { [weak self] a in
             guard Prefs.shared.agentCards else { return }

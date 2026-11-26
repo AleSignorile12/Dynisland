@@ -235,6 +235,7 @@ struct IslandView: View {
         case .agents: AgentsSection(agents: model.agents) { model.open($0) }
         case .sports: SportsSection(sports: model.sports).opens { model.openClickApp(for: s) }
         case .captions: CaptionsSection(captions: model.captions, prompter: model.prompter) { model.openSettings() }.opens { model.openClickApp(for: s) }
+        case .colors: ColorPickerSection(colors: model.colors)
         case .settings: SettingsModule { model.openSettings() }
         }
     }
