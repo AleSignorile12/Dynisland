@@ -234,14 +234,19 @@ final class IslandModel {
     /// (half that sideways, so menus beside the notch stay reachable) and closes it when the pointer leaves the open one.
     func mouseMoved(to p: CGPoint) {
         guard onboarding == nil else { return } // the tour keeps the island open until it's done
+        // Both zones reach past the top of the screen: behind the hardware notch the pointer sits exactly on the top edge,
+        // and a zone ending there doesn't contain it, which made the island close and reopen on every move.
+        let above: CGFloat = 40
         let inside: Bool
         if expanded {
-            let w = expandedSize.width + 28 // the open island's ears add 14 pt on each side
-            inside = CGRect(x: screenTop.x - w / 2, y: screenTop.y - expandedSize.height, width: w, height: expandedSize.height).contains(p)
+            let w = expandedSize.width + 28 + 8 // ears add 14 pt a side; 4 pt more so the border doesn't flicker
+            let h = expandedSize.height + 4
+            inside = CGRect(x: screenTop.x - w / 2, y: screenTop.y - h, width: w, height: h + above).contains(p)
         } else {
             let r = Prefs.shared.openDistance
             let w = closedSize.width + r
-            inside = CGRect(x: screenTop.x - w / 2, y: screenTop.y - closedSize.height - r, width: w, height: closedSize.height + r + 1).contains(p)
+            let h = closedSize.height + r
+            inside = CGRect(x: screenTop.x - w / 2, y: screenTop.y - h, width: w, height: h + above).contains(p)
         }
         guard inside != pointerNear else { return }
         pointerNear = inside
