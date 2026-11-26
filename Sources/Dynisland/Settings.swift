@@ -188,6 +188,7 @@ private struct GeneralSettings: View {
 private struct WhatsNew: View {
     /// Newest first. Add an entry whenever MARKETING_VERSION goes up.
     private let history: [(String, [String])] = [
+        ("1.2", ["Color Picker page: pick any pixel, copy HEX, RGB or HSL", "Weather beside the notch and on the Calendar page", "Score cards when a game starts, gets close or ends", "Bluetooth device batteries on the System page, with a low-battery card", "Pomodoro can turn on Do Not Disturb through Shortcuts", "Shelf page opens on the clipboard", "Welcome tour inside the island, opens when the pointer gets close", "Track ChatGPT chats and add your own AI apps"]),
         ("1.1", ["Settings with a sidebar, live island preview and per-module pages", "Follow many leagues incl. EuroLeague and EuroCup, live score in the closed notch", "Prompter under the camera, hidden from screen sharing", "Captions can start by themselves", "Mirror centred under the camera with a bigger light", "Color presets, island and accent colors", "Click-to-open, keep open, hover delay, haptics, sounds",
                  "Pomodoro timer", "Mirror light and flip", "Internet speed test on the System page", "Clipboard inside the Shelf page",
                  "Settings page in the island", "Sports scores", "Live captions hidden from screen sharing", "Arrow keys switch pages",
