@@ -126,6 +126,7 @@ private struct GeneralSettings: View {
     @State private var atLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError = false
     @State private var showHistory = false
+    @AppStorage("checkUpdates") private var checkUpdates = true
 
     var body: some View {
         Form {
@@ -169,6 +170,8 @@ private struct GeneralSettings: View {
                             .popover(isPresented: $showHistory, arrowEdge: .bottom) { WhatsNew().frame(width: 340, height: 360) }
                     }
                 }
+                Toggle("Check for updates automatically", isOn: $checkUpdates)
+                LabeledContent("Updates") { Button("Check Now") { Updates.check() } }
                 LabeledContent("Welcome tour") { Button("Show Again") { openTour() } }
                 LabeledContent("Quit") { Button("Quit Dynisland") { NSApp.terminate(nil) } }
             }

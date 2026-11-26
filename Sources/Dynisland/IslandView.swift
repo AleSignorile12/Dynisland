@@ -108,6 +108,7 @@ struct IslandView: View {
         .onDrop(of: IslandModel.dropTypes, delegate: IslandDrop(model: model, airdropMaxX: ear + pad + tileWidth + spacing / 2))
         .contextMenu {
             Button("Settings…") { model.openSettings() }
+            Button("Check for Updates…") { Updates.check() }
             Button("Quit Dynisland") { NSApp.terminate(nil) }
         }
         .animation(model.expanded ? .islandOpen : .islandClose, value: model.expanded)

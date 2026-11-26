@@ -37,6 +37,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] e in self?.model.mouseMoved(to: NSEvent.mouseLocation); return e }
         NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] e in self?.model.swipe(e) == true ? nil : e }
         if !UserDefaults.standard.bool(forKey: "onboarded") { showOnboarding() }
+        Updates.start() // checks GitHub for a newer release now and then daily
 
         NotificationCenter.default.addObserver(self, selector: #selector(place), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(prefsChanged), name: Prefs.changed, object: nil)

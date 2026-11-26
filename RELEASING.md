@@ -49,6 +49,12 @@ certificate, so a new certificate makes everyone grant them all again.
    Without `PUBLISH=1` it stops after making `build/release/Dynisland-<version>.dmg`, which you can upload by hand on
    GitHub → Releases → *Draft a new release*. Self-signed releases get the "Open Anyway" steps in their notes.
 
+**Updates:** from 1.3 on, Dynisland checks <https://api.github.com/repos/AleSignorile12/Dynisland/releases/latest>
+shortly after launch and then daily (Settings → General → *Check for updates automatically*, or *Check Now*). When the
+tag (`v1.3`) is newer than its own version it offers to install the release's `.dmg`: it downloads it, checks the app inside
+is signed with the same certificate, swaps it in place and relaunches. So a release needs a higher version than the last
+one, a `vX.Y` tag and the DMG attached (`PUBLISH=1` does all of it). Drafts aren't seen until you publish them.
+
 `TEST=1 ./release.sh` makes the same DMG with your development certificate, to try the packaging (can't be published).
 
 ## Later: notarised releases
