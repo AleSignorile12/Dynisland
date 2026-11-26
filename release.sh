@@ -9,6 +9,7 @@
 #
 #   ./release.sh            build and package
 #   PUBLISH=1 ./release.sh  ...and create the GitHub release (needs `gh auth login` once)
+#   DRAFT=1 PUBLISH=1 ...   as a draft: only you see it until you press Publish on GitHub
 set -euo pipefail
 cd "$(dirname "$0")"
 export DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
@@ -110,7 +111,7 @@ NOTES
 )
     notes=${notes//VERSION/$VERSION}
   fi
-  gh release create "v$VERSION" "$DMG" --title "Dynisland $VERSION" --notes "$notes" --generate-notes
+  gh release create "v$VERSION" "$DMG" --title "Dynisland $VERSION" --notes "$notes" --generate-notes ${DRAFT:+--draft}
 fi
 
 step "Done: $DMG"
