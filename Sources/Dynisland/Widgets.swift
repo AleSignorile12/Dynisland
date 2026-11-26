@@ -46,13 +46,17 @@ struct CalendarSection: View {
         .task { await calendar.load() }
     }
 
-    /// Forecast for today and tomorrow only (that's all that's fetched).
+    /// Today: now and the day's range. Other days: the forecast, for as far as it goes (a week).
     private func badge(_ d: Date) -> WeatherBadge? {
         guard let w = weather.now else { return nil }
         let cal = Calendar.current
         if cal.isDateInToday(d) { return WeatherBadge(code: w.code, day: w.day, text: "\(w.temp)° · \(w.high)°/\(w.low)°" + (w.rain >= 20 ? " · \(w.rain)%" : "")) }
-        if cal.isDateInTomorrow(d) { return WeatherBadge(code: w.tomorrowCode, text: "\(w.tomorrowHigh)°/\(w.tomorrowLow)°") }
-        return nil
+        // The rest of the week, from the 7-day forecast (matched by date, so any day you pick in the month works)
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd"
+        guard let fc = w.days.first(where: { $0.date == f.string(from: d) }) else { return nil }
+        return WeatherBadge(code: fc.code, text: "\(fc.high)°/\(fc.low)°" + (fc.rain >= 20 ? " · \(fc.rain)%" : ""))
     }
 }
 

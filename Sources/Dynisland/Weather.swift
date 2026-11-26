@@ -13,7 +13,7 @@ final class WeatherService: NSObject, CLLocationManagerDelegate {
         var days: [Day] = []    // today + 6
     }
     struct Hour: Equatable, Identifiable { var label: String, temp: Int, code: Int, day: Bool; var id: String { label } }
-    struct Day: Equatable, Identifiable { var label: String, high: Int, low: Int, code: Int, rain: Int; var id: String { label } }
+    struct Day: Equatable, Identifiable { var label: String, high: Int, low: Int, code: Int, rain: Int, date = ""; var id: String { label } } // date: "2026-11-27"
     var now: Now?
     var status = ""  // why there's no weather, for Settings
 
@@ -112,7 +112,7 @@ final class WeatherService: NSObject, CLLocationManagerDelegate {
             parse.dateFormat = "yyyy-MM-dd"
             n.days = (0..<min(dates.count, hi.count, lo.count, codes.count)).map { i in
                 Day(label: i == 0 ? "Today" : parse.date(from: dates[i]).map(dayLabel.string) ?? "", high: hi[i], low: lo[i], code: codes[i],
-                    rain: rain.indices.contains(i) ? rain[i] : 0)
+                    rain: rain.indices.contains(i) ? rain[i] : 0, date: dates[i])
             }
         }
         let result = n
