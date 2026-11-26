@@ -20,7 +20,7 @@ enum DropZone { case airdrop, shelf }
 
 /// A page of the expanded island. Order and visibility are user settings.
 enum IslandSection: String, CaseIterable, Identifiable {
-    case media, shelf, calendar, timer, mirror, controls, system, mixer, agents, sports, captions, colors, settings
+    case media, shelf, calendar, timer, mirror, controls, system, mixer, agents, sports, weather, captions, colors, eq, settings
     var id: String { rawValue }
     var title: String {
         switch self {
@@ -34,6 +34,8 @@ enum IslandSection: String, CaseIterable, Identifiable {
         case .mixer: "Volume Mixer"
         case .agents: "AI Agents"
         case .sports: "Sports"
+        case .weather: "Weather"
+        case .eq: "Equalizer"
         case .captions: "Captions & Prompter"
         case .colors: "Color Picker"
         case .settings: "Settings"
@@ -51,6 +53,8 @@ enum IslandSection: String, CaseIterable, Identifiable {
         case .mixer: "slider.vertical.3"
         case .agents: "sparkles"
         case .sports: "sportscourt.fill"
+        case .weather: "cloud.sun.fill"
+        case .eq: "slider.horizontal.3"
         case .captions: "captions.bubble.fill"
         case .colors: "eyedropper"
         case .settings: "gearshape.fill"
@@ -64,6 +68,7 @@ enum IslandSection: String, CaseIterable, Identifiable {
         case .calendar: "com.apple.iCal"
         case .mirror: "com.apple.PhotoBooth"
         case .system: "com.apple.ActivityMonitor"
+        case .weather: "com.apple.weather"
         default: nil
         }
     }
@@ -133,6 +138,7 @@ final class IslandModel {
     let clipboard = ClipboardService()
     let controls = ControlsService()
     let mixer = MixerService()
+    let eq = EqualizerService()
     let agents = AgentService()
     let network = NetworkService()
     let sports = SportsService()
@@ -172,13 +178,7 @@ final class IslandModel {
             guard Prefs.shared.agentCards else { return }
             self?.show(Banner(icon: a.symbol, title: "\(a.name) is done", subtitle: a.project.isEmpty ? "Reply ready" : a.project, tint: Prefs.shared.accent, image: a.icon))
         }
-        audio.onArrow = { [weak self] step in // ← → switch pages while the pointer is on the open island
-            guard let self, hovering, !dragging else { return false }
-            let all = sections
-            guard let i = all.firstIndex(of: shownSection), !all.isEmpty else { return false }
-            selected = all[(i + step + all.count) % all.count]
-            return true
-        }
+        audio.onArrow = { [weak self] step in self?.page(step) ?? false } // ← → switch pages while the pointer is on the open island
         audio.onHUD = { [weak self] h in
             guard self?.expanded == false else { return } // changed from the island's own sliders: no HUD needed
             self?.hud = h
@@ -264,10 +264,40 @@ final class IslandModel {
         pointer(inside: inside)
     }
 
-    /// Every time it opens, the island starts on the leftmost tab, whatever the tab order.
+    /// The island reopens on the page it was on (the leftmost if that page was turned off since).
     func opened(_ open: Bool) {
         feedback(opened: open)
-        if open { selected = sections.first ?? .media; shelfShowsClipboard = true }
+        if open {
+            if !sections.contains(selected) { selected = sections.first ?? .media }
+            shelfShowsClipboard = true
+        }
+    }
+
+    /// Next (+1) or previous (-1) page, wrapping around. False when the island isn't open under the pointer.
+    @discardableResult
+    func page(_ step: Int) -> Bool {
+        guard hovering, !dragging else { return false }
+        let all = sections
+        guard let i = all.firstIndex(of: shownSection), !all.isEmpty else { return false }
+        selected = all[(i + step + all.count) % all.count]
+        return true
+    }
+
+    @ObservationIgnored private var swipeX: CGFloat = 0
+    @ObservationIgnored private var swipeY: CGFloat = 0
+    @ObservationIgnored private var swipeDone = false
+    /// Two-finger trackpad swipe left/right on the open island changes page, once per gesture. On pages that scroll
+    /// sideways (shelf, clipboard, sports, agents) only a swipe over the tab bar does, so their lists still scroll.
+    /// Returns true when the event was used.
+    func swipe(_ e: NSEvent) -> Bool {
+        guard expanded, hovering, e.hasPreciseScrollingDeltas, e.momentumPhase.isEmpty else { return false }
+        if [.shelf, .sports, .agents].contains(shownSection), screenTop.y - NSEvent.mouseLocation.y > notch.height + 6 { return false }
+        if e.phase == .began { swipeX = 0; swipeY = 0; swipeDone = false }
+        swipeX += e.scrollingDeltaX
+        swipeY += e.scrollingDeltaY
+        guard !swipeDone, abs(swipeX) > 40, abs(swipeX) > abs(swipeY) * 2 else { return swipeDone }
+        swipeDone = true
+        return page(swipeX < 0 ? 1 : -1) // fingers moving left = next page, as on iPhone
     }
 
     func startOnboarding() {

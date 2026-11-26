@@ -120,7 +120,8 @@ final class CaptionsService {
 
     private func startTap() -> Bool {
         guard let outputUID = CA.string(CA.defaultOutput, kAudioDevicePropertyDeviceUID) else { return false }
-        let desc = CATapDescription(stereoGlobalTapButExcludeProcesses: [])
+        let own = CA.processObject(getpid()) // skip our own output (the equalizer's replay), or captions would hear everything twice
+        let desc = CATapDescription(stereoGlobalTapButExcludeProcesses: own == 0 ? [] : [own])
         desc.muteBehavior = .unmuted
         desc.isPrivate = true
         guard AudioHardwareCreateProcessTap(desc, &tap) == noErr else { return false }

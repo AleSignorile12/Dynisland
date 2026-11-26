@@ -35,6 +35,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Opening by distance needs every mouse move: global for other apps' windows, local for our own. No permission needed.
         NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] _ in self?.model.mouseMoved(to: NSEvent.mouseLocation) }
         NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] e in self?.model.mouseMoved(to: NSEvent.mouseLocation); return e }
+        NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] e in self?.model.swipe(e) == true ? nil : e }
         if !UserDefaults.standard.bool(forKey: "onboarded") { showOnboarding() }
 
         NotificationCenter.default.addObserver(self, selector: #selector(place), name: NSApplication.didChangeScreenParametersNotification, object: nil)

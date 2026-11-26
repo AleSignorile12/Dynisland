@@ -69,7 +69,9 @@ Pages in the open island (each one can be turned off or reordered in Settings):
 - **Volume Mixer.** A volume slider for each app that's playing sound.
 - **AI Agents.** Claude Code, Claude, Codex and ChatGPT: which ones are working, and a banner when one is done.
 - **Sports.** Live scores, and cards when a game starts, gets close at the end, or finishes.
+- **Weather.** Current conditions, the next 24 hours and the week ahead. Click it to open the Weather app.
 - **Captions & Prompter.** Live subtitles for whatever your Mac is playing, and a teleprompter right under the camera.
+- **Equalizer.** A 10-band EQ for all of the Mac's sound, with presets (Bass Boost, Vocal, Podcast…). No audio driver to install.
 - **Color Picker.** An eyedropper for any pixel on screen: copies HEX, RGB or HSL and keeps your last 12 colours.
 
 While it's closed:
@@ -79,7 +81,7 @@ While it's closed:
 - **Downloads** show their progress.
 - The island hides when a fullscreen app is in front, and can be hidden from screen sharing.
 
-It opens as soon as the pointer comes near the notch (the distance is adjustable in Settings → General), always on the leftmost tab. Use ← and → to switch pages while the pointer is on the open island.
+It opens as soon as the pointer comes near the notch (the distance is adjustable in Settings → General), on the page you last left it on. Use ← and → or a two-finger swipe left/right to switch pages while the pointer is on the open island (on pages that scroll sideways, swipe over the tab bar).
 
 On first launch the island grows into a welcome tour that shows how it works, lets you pick your pages and a look, and asks for each permission with a reason. Settings → General → Welcome tour brings it back.
 
@@ -101,7 +103,7 @@ A small Objective-C library reads the system-wide Now Playing info, so it works 
 
 ### Audio (`Sources/Dynisland/Audio.swift`, `Sources/Dynisland/Captions.swift`)
 
-The Volume Mixer uses Core Audio process taps to change the volume of one app at a time. Captions tap the Mac's audio output and pass it to on-device speech recognition.
+The Volume Mixer uses Core Audio process taps to change the volume of one app at a time, and the Equalizer taps every app's sound, filters it and plays it back on the current output. Captions tap the Mac's audio output and pass it to on-device speech recognition.
 
 ---
 
@@ -154,6 +156,7 @@ Dynisland/
 │   ├── Colors.swift        Color picker
 │   ├── Weather.swift       Weather
 │   ├── Bluetooth.swift     Bluetooth device batteries
+│   ├── Equalizer.swift     System-wide equalizer
 │   ├── Clipboard.swift     Clipboard history
 │   ├── Notifications.swift Notification banners
 │   ├── Settings.swift      The Settings window

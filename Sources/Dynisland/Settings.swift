@@ -421,10 +421,12 @@ extension IslandSection {
         case .agents: "Accessibility"
         case .captions: "Speech Recognition, System Audio Recording"
         case .sports: "internet, no permissions"
+        case .weather: "Location (or type a city in Settings → Weather)"
+        case .eq: "System Audio Recording"
         default: "no permissions"
         }
     }
-    var clickable: Bool { self != .agents && self != .settings && self != .colors }
+    var clickable: Bool { self != .agents && self != .settings && self != .colors && self != .eq }
     var tint: Color {
         switch self {
         case .media: .pink
@@ -437,6 +439,8 @@ extension IslandSection {
         case .mixer: .purple
         case .agents: .orange
         case .sports: .green
+        case .weather: .cyan
+        case .eq: .mint
         case .captions: .teal
         case .colors: .yellow
         case .settings: .gray

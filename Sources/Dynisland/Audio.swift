@@ -37,6 +37,12 @@ enum CA {
         var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
         return AudioObjectGetPropertyData(obj, &addr, 0, nil, &size, &ids) == noErr ? ids : []
     }
+    /// Core Audio's object for a process (0 if it has never touched audio).
+    static func processObject(_ pid: pid_t) -> AudioObjectID {
+        var qualifier = pid, process = AudioObjectID(0), size = UInt32(MemoryLayout<AudioObjectID>.size)
+        var addr = address(kAudioHardwarePropertyTranslatePIDToProcessObject)
+        return AudioObjectGetPropertyData(system, &addr, UInt32(MemoryLayout<pid_t>.size), &qualifier, &size, &process) == noErr ? process : 0
+    }
     static var defaultOutput: AudioObjectID { CA.get(system, kAudioHardwarePropertyDefaultOutputDevice, default: AudioObjectID(0)) }
 }
 

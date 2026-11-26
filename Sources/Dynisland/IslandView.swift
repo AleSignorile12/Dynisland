@@ -241,6 +241,8 @@ struct IslandView: View {
         case .sports: SportsSection(sports: model.sports).opens { model.openClickApp(for: s) }
         case .captions: CaptionsSection(captions: model.captions, prompter: model.prompter) { model.openSettings() }.opens { model.openClickApp(for: s) }
         case .colors: ColorPickerSection(colors: model.colors)
+        case .weather: WeatherSection(weather: model.weather).opens { model.openClickApp(for: s) }
+        case .eq: EqualizerSection(eq: model.eq)
         case .settings: SettingsModule { model.openSettings() }
         }
     }
