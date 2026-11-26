@@ -32,6 +32,7 @@ final class CaptionsService {
     @ObservationIgnored private var autoStarted = false   // started by the watcher, so the watcher may stop it
     @ObservationIgnored private var userStopped = false   // turned off by hand: don't restart until the audio stops
     @ObservationIgnored private var quietSince: Date?
+    @ObservationIgnored private var generation = 0       // bumped by stop(), so a start still waiting for permission gives up
 
     init() {
         Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.watchAudio() }
@@ -43,7 +44,10 @@ final class CaptionsService {
 
     /// "Start automatically": captions come on when any app plays sound and go off after 15 s of silence.
     private func watchAudio() {
-        guard Prefs.shared.captionsAuto else { return }
+        guard Prefs.shared.captionsAuto else {
+            if autoStarted { autoStarted = false; stop() } // the setting was turned off: take down what it started
+            return
+        }
         let playing = CA.list(CA.system, kAudioHardwarePropertyProcessObjectList).contains { obj in
             CA.get(obj, kAudioProcessPropertyIsRunningOutput, default: UInt32(0)) != 0 && CA.get(obj, kAudioProcessPropertyPID, default: pid_t(-1)) != getpid()
         }
@@ -61,9 +65,11 @@ final class CaptionsService {
     func start() {
         problem = nil
         starting = true
+        let gen = generation
         SFSpeechRecognizer.requestAuthorization { status in
             DispatchQueue.main.async {
                 defer { self.starting = false }
+                guard gen == self.generation else { return } // turned off while it was starting
                 guard status == .authorized else { self.problem = "Allow Speech Recognition in System Settings"; return }
                 guard let r = SFSpeechRecognizer(locale: Locale(identifier: self.language)), r.isAvailable else {
                     self.problem = "Language not available"; return
@@ -78,6 +84,7 @@ final class CaptionsService {
     }
 
     func stop() {
+        generation += 1
         on = false
         stopTap()
         task?.cancel()
