@@ -330,7 +330,7 @@ private struct ModulesSettings: View {
             } header: {
                 Text("Pages in the island")
             } footer: {
-                note("Arrows change the order of the tabs. The menu picks the app a click on the page's empty area opens. In the island, ← → switch pages while the pointer is on it.")
+                note("Arrows change the order of the tabs; Settings is always last. The menu picks the app a click on the page's empty area opens. In the island, ← → switch pages while the pointer is on it.")
             }
         }
         .formStyle(.grouped)
@@ -368,6 +368,7 @@ private struct ModuleRow: View {
                 arrow("chevron.up", to: index - 1)
                 arrow("chevron.down", to: index + 1)
             }
+            .opacity(section == .settings ? 0 : 1) // Settings stays the last tab
             Toggle("", isOn: Binding(
                 get: { !model.disabledSections.contains(section) },
                 set: { on in if on { model.disabledSections.remove(section) } else { model.disabledSections.insert(section) } }
@@ -383,7 +384,7 @@ private struct ModuleRow: View {
             Image(systemName: icon).font(.system(size: 9, weight: .bold)).frame(width: 18, height: 12)
         }
         .buttonStyle(.borderless)
-        .disabled(j < 0 || j >= model.sectionOrder.count)
+        .disabled(section == .settings || j < 0 || j >= model.sectionOrder.count - 1) // the last slot is Settings'
     }
 
     private var appMenu: some View {

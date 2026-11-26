@@ -147,12 +147,22 @@ struct EqualizerSection: View {
                     Text("Equalizer").font(.system(size: 12, weight: .semibold))
                 }
                 .toggleStyle(.switch).controlSize(.mini)
-                Menu {
-                    ForEach(EqualizerService.presets, id: \.name) { p in Button(p.name) { eq.use(p.gains) } }
-                } label: {
-                    Text(eq.preset ?? "Custom").font(.system(size: 11, weight: .medium))
+                HStack(spacing: 6) {
+                    Menu {
+                        ForEach(EqualizerService.presets, id: \.name) { p in Button(p.name) { eq.use(p.gains) } }
+                    } label: {
+                        Text(eq.preset ?? "Custom").font(.system(size: 11, weight: .medium))
+                    }
+                    .menuStyle(.borderlessButton).fixedSize()
+                    Button { withAnimation(.snappy) { eq.use(EqualizerService.presets[0].gains) } } label: {
+                        Image(systemName: "arrow.counterclockwise").font(.system(size: 10, weight: .semibold))
+                            .frame(width: 20, height: 20).background(.white.opacity(0.1), in: Circle())
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(eq.preset == "Flat")
+                    .opacity(eq.preset == "Flat" ? 0.4 : 1)
+                    .help("Reset all bands to 0 dB")
                 }
-                .menuStyle(.borderlessButton).fixedSize()
                 Spacer(minLength: 0)
                 Text(eq.failed ? "Allow System Audio Recording in System Settings" : eq.on ? "All apps' sound" : "Off: sound plays untouched")
                     .font(.system(size: 9)).foregroundStyle(eq.failed ? .orange : .secondary).fixedSize(horizontal: false, vertical: true)

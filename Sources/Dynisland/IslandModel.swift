@@ -108,8 +108,11 @@ final class IslandModel {
     var selected = IslandSection.media
     var shelfShowsClipboard = true // the Shelf page's second half: clipboard history instead of dropped files
 
-    var sectionOrder: [IslandSection] {
-        didSet { UserDefaults.standard.set(sectionOrder.map(\.rawValue), forKey: "sectionOrder") }
+    var sectionOrder: [IslandSection] { // Settings is always the last tab
+        didSet {
+            if sectionOrder.last != .settings { sectionOrder = sectionOrder.filter { $0 != .settings } + [.settings] }
+            UserDefaults.standard.set(sectionOrder.map(\.rawValue), forKey: "sectionOrder")
+        }
     }
     var disabledSections: Set<IslandSection> {
         didSet { UserDefaults.standard.set(disabledSections.map(\.rawValue), forKey: "disabledSections") }
@@ -166,7 +169,7 @@ final class IslandModel {
 
     init() {
         let saved = (UserDefaults.standard.stringArray(forKey: "sectionOrder") ?? []).compactMap(IslandSection.init)
-        sectionOrder = saved + IslandSection.allCases.filter { !saved.contains($0) } // sections added in updates go last
+        sectionOrder = (saved + IslandSection.allCases.filter { !saved.contains($0) }).filter { $0 != .settings } + [.settings] // new pages go last, before Settings
         disabledSections = Set((UserDefaults.standard.stringArray(forKey: "disabledSections") ?? []).compactMap(IslandSection.init))
         clickApps = UserDefaults.standard.dictionary(forKey: "clickApps") as? [String: String] ?? [:]
 
@@ -291,11 +294,15 @@ final class IslandModel {
     /// Returns true when the event was used.
     func swipe(_ e: NSEvent) -> Bool {
         guard expanded, hovering, e.hasPreciseScrollingDeltas, e.momentumPhase.isEmpty else { return false }
-        if [.shelf, .sports, .agents].contains(shownSection), screenTop.y - NSEvent.mouseLocation.y > notch.height + 6 { return false }
-        if e.phase == .began { swipeX = 0; swipeY = 0; swipeDone = false }
-        swipeX += e.scrollingDeltaX
+        if e.phase == .began || e.phase == .mayBegin { swipeX = 0; swipeY = 0; swipeDone = false }
+        if e.phase == .ended || e.phase == .cancelled { defer { swipeX = 0; swipeY = 0; swipeDone = false }; return false }
+        // Pages with a sideways list: swiping over the content scrolls it; only the tab bar changes page.
+        if [.shelf, .sports, .agents, .weather].contains(shownSection), screenTop.y - NSEvent.mouseLocation.y > notch.height + 6 { return false }
+        // Undo "natural scrolling" so the numbers follow the fingers, whatever the user's setting.
+        let flip: CGFloat = e.isDirectionInvertedFromDevice ? -1 : 1
+        swipeX += e.scrollingDeltaX * flip
         swipeY += e.scrollingDeltaY
-        guard !swipeDone, abs(swipeX) > 40, abs(swipeX) > abs(swipeY) * 2 else { return swipeDone }
+        guard !swipeDone, abs(swipeX) > 30, abs(swipeX) > abs(swipeY) * 1.5 else { return swipeDone }
         swipeDone = true
         return page(swipeX < 0 ? 1 : -1) // fingers moving left = next page, as on iPhone
     }

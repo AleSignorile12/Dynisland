@@ -30,6 +30,7 @@ final class ColorPickerService {
     }
 
     func clear() { recent = [] }
+    func remove(_ hex: String) { recent.removeAll { $0 == hex } }
 
     static func formats(_ hex: String) -> [(name: String, value: String)] {
         let c = NSColor(Color(hex: hex)).usingColorSpace(.sRGB) ?? .black
@@ -106,12 +107,7 @@ struct ColorPickerSection: View {
                     ForEach(0..<12, id: \.self) { i in
                         if i < colors.recent.count {
                             let hex = colors.recent[i]
-                            Button { colors.use(hex); flash("HEX") } label: {
-                                Circle().fill(Color(hex: hex)).overlay(Circle().strokeBorder(.white.opacity(0.2)))
-                                    .frame(width: 22, height: 22)
-                            }
-                            .buttonStyle(.plain)
-                            .help("Copy \(hex)")
+                            RecentSwatch(hex: hex, copy: { colors.use(hex); flash("HEX") }, remove: { withAnimation(.snappy) { colors.remove(hex) } })
                         } else {
                             Circle().strokeBorder(.white.opacity(0.1), style: StrokeStyle(lineWidth: 1, dash: [3, 3])).frame(width: 22, height: 22)
                         }
@@ -129,5 +125,36 @@ struct ColorPickerSection: View {
     private func flash(_ name: String) {
         copied = name
         Task { try? await Task.sleep(for: .seconds(1.2)); if copied == name { copied = nil } }
+    }
+}
+
+/// A recent colour: click copies it; hovering shows a small × that removes it.
+private struct RecentSwatch: View {
+    let hex: String
+    let copy: () -> Void
+    let remove: () -> Void
+    @State private var hover = false
+
+    var body: some View {
+        Button(action: copy) {
+            Circle().fill(Color(hex: hex)).overlay(Circle().strokeBorder(.white.opacity(0.2)))
+                .frame(width: 22, height: 22)
+        }
+        .buttonStyle(.plain)
+        .help("Copy \(hex)")
+        .overlay(alignment: .topTrailing) {
+            if hover {
+                Button(action: remove) {
+                    Image(systemName: "xmark").font(.system(size: 6, weight: .heavy)).foregroundStyle(.white)
+                        .frame(width: 11, height: 11).background(Circle().fill(.black.opacity(0.85)))
+                        .overlay(Circle().strokeBorder(.white.opacity(0.35), lineWidth: 0.5))
+                }
+                .buttonStyle(.plain)
+                .help("Remove \(hex)")
+                .offset(x: 4, y: -4)
+                .transition(.scale.combined(with: .opacity))
+            }
+        }
+        .onHover { h in withAnimation(.snappy(duration: 0.15)) { hover = h } }
     }
 }
