@@ -22,14 +22,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.level = NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 3)
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary, .ignoresCycle]
         panel.isMovable = false
+        panel.acceptsMouseMovedEvents = true
         panel.contentView = NSHostingView(rootView: IslandView(model: model))
         panel.sharingType = Prefs.shared.hideFromSharing ? .none : .readOnly
         model.openSettings = { [weak self] in self?.showSettings() }
+        model.openOnboarding = { [weak self] in self?.showOnboarding() }
         DistributedNotificationCenter.default().addObserver(forName: IslandModel.shelfHandoff, object: nil, queue: .main) { [weak self] note in
             self?.model.receiveShelfHandoff(note.userInfo?["paths"] as? [String] ?? [])
         }
         place()
         panel.orderFrontRegardless()
+        // Opening by distance needs every mouse move: global for other apps' windows, local for our own. No permission needed.
+        NSEvent.addGlobalMonitorForEvents(matching: .mouseMoved) { [weak self] _ in self?.model.mouseMoved(to: NSEvent.mouseLocation) }
+        NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] e in self?.model.mouseMoved(to: NSEvent.mouseLocation); return e }
+        if !UserDefaults.standard.bool(forKey: "onboarded") { showOnboarding() }
 
         NotificationCenter.default.addObserver(self, selector: #selector(place), name: NSApplication.didChangeScreenParametersNotification, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(prefsChanged), name: Prefs.changed, object: nil)
@@ -56,6 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let open = model.expandedSize
         model.approachZone = NSRect(x: f.midX - open.width / 2 - reach, y: f.maxY - open.height - reach,
                                     width: open.width + reach * 2, height: open.height + reach)
+        model.screenTop = CGPoint(x: f.midX, y: f.maxY)
         let c = Self.canvas
         panel.setFrame(NSRect(x: f.midX - c.width / 2, y: f.maxY - c.height, width: c.width, height: c.height), display: true)
     }
@@ -125,6 +132,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AXValueGetValue(p as! AXValue, .cgPoint, &point)
         AXValueGetValue(s as! AXValue, .cgSize, &size)
         return CGRect(origin: point, size: size)
+    }
+
+    var onboardingWindow: NSWindow?
+
+    func showOnboarding() {
+        if onboardingWindow == nil {
+            let w = Onboarding.window(model: model) { [weak self] in
+                self?.onboardingWindow?.close()
+                self?.model.peek()
+            }
+            NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: w, queue: .main) { [weak self] _ in
+                UserDefaults.standard.set(true, forKey: "onboarded") // closing it early counts too: it never comes back on its own
+                self?.onboardingWindow = nil
+            }
+            onboardingWindow = w
+        }
+        NSApp.activate(ignoringOtherApps: true)
+        onboardingWindow?.makeKeyAndOrderFront(nil)
     }
 
     func showSettings() {

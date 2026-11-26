@@ -42,6 +42,7 @@ final class Prefs {
     var clickToOpen: Bool { didSet { save() } }
     var keepOpenAfterClick: Bool { didSet { save() } }
     var hoverDelay: Double { didSet { save() } }
+    var openDistance: Double { didSet { save() } } // how close (pt) the pointer must come to the closed island to open it
     var haptics: Bool { didSet { save() } }
     var sounds: Bool { didSet { save() } }
     // Timers
@@ -66,7 +67,7 @@ final class Prefs {
     var island: Color { Color(hex: islandHex) }
 
     private static let keys = ["islandHex", "accentHex", "islandSize", "bouncy", "showIsland", "clickToOpen", "keepOpenAfterClick",
-                               "hoverDelay", "haptics", "sounds", "focusMinutes", "shortBreakMinutes", "longBreakMinutes", "timerSound",
+                               "hoverDelay", "openDistance", "haptics", "sounds", "focusMinutes", "shortBreakMinutes", "longBreakMinutes", "timerSound",
                                "lyrics", "albumTint", "musicActivity", "agentActivity", "agentCards", "captionSize", "captionsAuto", "hideFromSharing"]
 
     private init() {
@@ -81,6 +82,7 @@ final class Prefs {
         clickToOpen = bool("clickToOpen", false)
         keepOpenAfterClick = bool("keepOpenAfterClick", false)
         hoverDelay = d.object(forKey: "hoverDelay") as? Double ?? 0
+        openDistance = d.object(forKey: "openDistance") as? Double ?? 24
         haptics = bool("haptics", false)
         sounds = bool("sounds", false)
         focusMinutes = int("focusMinutes", 25)
@@ -103,7 +105,7 @@ final class Prefs {
 
     private func save() {
         let d = UserDefaults.standard
-        let values: [Any] = [islandHex, accentHex, size.rawValue, bouncy, showIsland, clickToOpen, keepOpenAfterClick, hoverDelay, haptics,
+        let values: [Any] = [islandHex, accentHex, size.rawValue, bouncy, showIsland, clickToOpen, keepOpenAfterClick, hoverDelay, openDistance, haptics,
                              sounds, focusMinutes, shortBreakMinutes, longBreakMinutes, timerSound, lyrics, albumTint, musicActivity,
                              agentActivity, agentCards, captionSize, captionsAuto, hideFromSharing]
         for (k, v) in zip(Self.keys, values) { d.set(v, forKey: k) }

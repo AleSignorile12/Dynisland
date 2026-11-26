@@ -58,7 +58,7 @@ final class AudioService {
         var addr = CA.address(kAudioHardwarePropertyDefaultOutputDevice)
         AudioObjectAddPropertyListenerBlock(CA.system, &addr, .main) { [weak self] _, _ in self?.outputChanged() }
         listen(to: device)
-        startKeyTap(prompt: true)
+        startKeyTap(prompt: UserDefaults.standard.bool(forKey: "onboarded")) // on first launch onboarding asks, with an explanation
     }
 
     private func outputChanged() {

@@ -96,9 +96,9 @@ struct IslandView: View {
         }
         .frame(width: size.width + ear * 2, height: size.height)
         .clipShape(NotchShape(ear: ear, bottom: bottom))
-        .onHover { model.pointer(inside: $0) }
+        .onChange(of: size, initial: true) { _, s in if !model.expanded { model.closedSize = s } } // for the open-when-near zone
         .simultaneousGesture(TapGesture().onEnded { model.clicked() })
-        .onChange(of: model.expanded) { _, open in model.feedback(opened: open) }
+        .onChange(of: model.expanded) { _, open in model.opened(open) }
         .onDrop(of: IslandModel.dropTypes, delegate: IslandDrop(model: model, airdropMaxX: ear + pad + tileWidth + spacing / 2))
         .contextMenu {
             Button("Settings…") { model.openSettings() }

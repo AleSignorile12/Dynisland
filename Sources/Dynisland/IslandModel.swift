@@ -122,6 +122,7 @@ final class IslandModel {
     /// Screen area (AppKit coordinates) where an incoming drag already opens the island; set by AppDelegate.place().
     @ObservationIgnored var approachZone = CGRect.zero
     @ObservationIgnored var openSettings: () -> Void = {}
+    @ObservationIgnored var openOnboarding: () -> Void = {}
 
     let media = MediaService()
     let calendar = CalendarService()
@@ -145,6 +146,11 @@ final class IslandModel {
     @ObservationIgnored private var dragBaseline = NSPasteboard(name: .drag).changeCount
     @ObservationIgnored private var dragWatchdog: Timer?
     @ObservationIgnored private var hoverTask: Task<Void, Never>?
+    @ObservationIgnored private var pointerNear = false
+    /// Top-centre of the notched screen (AppKit coordinates); set by AppDelegate.place().
+    @ObservationIgnored var screenTop = CGPoint.zero
+    /// Size of the closed island as drawn right now (wings and cards included); reported by IslandView.
+    @ObservationIgnored var closedSize = CGSize.zero
 
     init() {
         let saved = (UserDefaults.standard.stringArray(forKey: "sectionOrder") ?? []).compactMap(IslandSection.init)
@@ -222,6 +228,35 @@ final class IslandModel {
     }
 
     // MARK: Opening
+
+    /// Called on every mouse move. Opens the island once the pointer comes within `openDistance` of the closed island
+    /// (half that sideways, so menus beside the notch stay reachable) and closes it when the pointer leaves the open one.
+    func mouseMoved(to p: CGPoint) {
+        let inside: Bool
+        if expanded {
+            let w = expandedSize.width + 28 // the open island's ears add 14 pt on each side
+            inside = CGRect(x: screenTop.x - w / 2, y: screenTop.y - expandedSize.height, width: w, height: expandedSize.height).contains(p)
+        } else {
+            let r = Prefs.shared.openDistance
+            let w = closedSize.width + r
+            inside = CGRect(x: screenTop.x - w / 2, y: screenTop.y - closedSize.height - r, width: w, height: closedSize.height + r + 1).contains(p)
+        }
+        guard inside != pointerNear else { return }
+        pointerNear = inside
+        pointer(inside: inside)
+    }
+
+    /// Every time it opens, the island starts on the leftmost tab, whatever the tab order.
+    func opened(_ open: Bool) {
+        feedback(opened: open)
+        if open { selected = sections.first ?? .media }
+    }
+
+    /// Opens the island for a moment, e.g. at the end of onboarding, to show where it lives.
+    func peek() {
+        holdOpen = true
+        expire("hold", after: 2.5) { [weak self] in self?.holdOpen = false }
+    }
 
     /// Pointer entered or left the island. Opens after the hover delay, or waits for a click in click-to-open mode.
     func pointer(inside: Bool) {

@@ -83,7 +83,7 @@ private struct SettingsRoot: View {
         } detail: {
             Group {
                 switch pane ?? .general {
-                case .general: GeneralSettings()
+                case .general: GeneralSettings(openTour: model.openOnboarding)
                 case .appearance: AppearanceSettings()
                 case .modules: ModulesSettings(model: model)
                 case .timers: TimerSettings()
@@ -116,6 +116,7 @@ private let appVersion = "\(Bundle.main.object(forInfoDictionaryKey: "CFBundleSh
 // MARK: General
 
 private struct GeneralSettings: View {
+    let openTour: () -> Void
     @Bindable var prefs = Prefs.shared
     @State private var atLogin = SMAppService.mainApp.status == .enabled
     @State private var loginError = false
@@ -140,6 +141,12 @@ private struct GeneralSettings: View {
                         Text(String(format: "%.2f s", prefs.hoverDelay)).monospacedDigit().frame(width: 48, alignment: .trailing)
                     }
                 }
+                LabeledContent("Open when the pointer is within") {
+                    HStack {
+                        Slider(value: $prefs.openDistance, in: 0...80, step: 4).frame(width: 180).disabled(prefs.clickToOpen)
+                        Text("\(Int(prefs.openDistance)) pt").monospacedDigit().frame(width: 48, alignment: .trailing)
+                    }
+                }
                 Toggle("Haptic feedback when it opens", isOn: $prefs.haptics)
                 Toggle("Sounds when it opens and closes", isOn: $prefs.sounds)
             } header: {
@@ -156,6 +163,7 @@ private struct GeneralSettings: View {
                             .popover(isPresented: $showHistory, arrowEdge: .bottom) { WhatsNew().frame(width: 340, height: 360) }
                     }
                 }
+                LabeledContent("Welcome tour") { Button("Show Again") { openTour() } }
                 LabeledContent("Quit") { Button("Quit Dynisland") { NSApp.terminate(nil) } }
             }
         }
@@ -240,7 +248,7 @@ private struct AppearanceSettings: View {
     }
 }
 
-private struct PresetButton: View {
+struct PresetButton: View {
     let preset: Prefs.Preset
     let prefs = Prefs.shared
     var body: some View {
@@ -263,7 +271,7 @@ private struct PresetButton: View {
 }
 
 /// A small open island drawn with the current colors and animation, so changes show before you hover the real one.
-private struct IslandPreview: View {
+struct IslandPreview: View {
     let prefs = Prefs.shared
     @State private var progress = 0.82
     var body: some View {

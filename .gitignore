@@ -2,3 +2,5 @@ build/
 Dynisland.app/
 xcuserdata/
 *.xcworkspace/xcuserdata/
+.DS_Store
+Icon?

@@ -61,7 +61,9 @@ While it's closed:
 - **Downloads** show their progress.
 - The island hides when a fullscreen app is in front, and can be hidden from screen sharing.
 
-Use ← and → to switch pages while the pointer is on the open island.
+It opens as soon as the pointer comes near the notch (the distance is adjustable in Settings → General), always on the leftmost tab. Use ← and → to switch pages while the pointer is on the open island.
+
+On first launch a short welcome tour shows how it works, lets you pick your pages and a look, and asks for each permission with a reason. Settings → General → Welcome tour brings it back.
 
 ---
 
@@ -134,6 +136,7 @@ Dynisland/
 │   ├── Clipboard.swift     Clipboard history
 │   ├── Notifications.swift Notification banners
 │   ├── Settings.swift      The Settings window
+│   ├── Onboarding.swift    First-launch welcome tour
 │   └── Prefs.swift         Saved preferences
 ├── Bridge/NowPlaying.m     Now Playing helper
 ├── Dynisland.xcodeproj
