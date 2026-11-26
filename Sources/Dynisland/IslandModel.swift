@@ -139,6 +139,8 @@ final class IslandModel {
     let captions = CaptionsService()
     let prompter = PrompterService()
     let colors = ColorPickerService()
+    let weather = WeatherService()
+    let bluetooth = BluetoothService()
     @ObservationIgnored let audio = AudioService()
     @ObservationIgnored let notifications = NotificationWatcher()
 
@@ -163,6 +165,8 @@ final class IslandModel {
         clickApps = UserDefaults.standard.dictionary(forKey: "clickApps") as? [String: String] ?? [:]
 
         colors.onPick = { [weak self] hex in self?.show(Banner(icon: "eyedropper", title: "\(hex) copied", tint: Color(hex: hex))) }
+        sports.onAlert = { [weak self] icon, title, subtitle in self?.show(Banner(icon: icon, title: title, subtitle: subtitle, tint: Prefs.shared.accent)) }
+        bluetooth.onLow = { [weak self] d in self?.show(Banner(icon: d.symbol, title: "\(d.name) battery low", subtitle: d.detail, tint: .red)) }
         timer.onDone = { [weak self] title, subtitle in self?.show(Banner(icon: "timer", title: title, subtitle: subtitle, tint: Prefs.shared.accent)) }
         agents.onFinish = { [weak self] a in
             guard Prefs.shared.agentCards else { return }

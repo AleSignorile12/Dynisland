@@ -20,7 +20,7 @@
 
 - **Platforms:** macOS 14.2+, best on a MacBook with a notch (without one it draws a notch under the menu bar)
 - **Language:** Swift with SwiftUI and AppKit, plus a small Objective-C bridge for Now Playing. No third-party dependencies.
-- **Privacy:** captions run on the device. The network is used only for lyrics, sports scores and the speed test.
+- **Privacy:** captions run on the device. The network is used only for lyrics, weather, sports scores and the speed test.
 - **Status:** still working on it (see [Status](#status-what-is-verified-and-what-isnt)).
 
 ---
@@ -61,21 +61,21 @@ Pages in the open island (each one can be turned off or reordered in Settings):
 
 - **Music.** What's playing in any app, with controls and lyrics.
 - **Shelf, AirDrop & Clipboard.** Drop files on the island to keep them for later, drop them on AirDrop to send them, or flip to your clipboard history.
-- **Calendar.** This month's events.
-- **Timer.** Quick timers and a Pomodoro.
+- **Calendar.** This month's events, with today's and tomorrow's weather.
+- **Timer.** Quick timers and a Pomodoro that can turn on Do Not Disturb during focus sessions (through two Shortcuts you make once).
 - **Mirror.** A live camera preview.
 - **Quick Controls.** Keep Awake, Dark Mode, Screenshot, Sleep Display, brightness and volume.
-- **System.** CPU, memory, battery, thermal state and an internet speed test.
+- **System.** CPU, memory, battery, thermal state (or your Bluetooth devices' batteries when any are connected) and an internet speed test.
 - **Volume Mixer.** A volume slider for each app that's playing sound.
 - **AI Agents.** Claude Code, Claude, Codex and ChatGPT: which ones are working, and a banner when one is done.
-- **Sports.** Live scores.
+- **Sports.** Live scores, and cards when a game starts, gets close at the end, or finishes.
 - **Captions & Prompter.** Live subtitles for whatever your Mac is playing, and a teleprompter right under the camera.
 - **Color Picker.** An eyedropper for any pixel on screen: copies HEX, RGB or HSL and keeps your last 12 colours.
 
 While it's closed:
 
-- **Live activities** beside the notch: volume and brightness, charging, a running timer, a live score.
-- **Banners** that drop out of the notch: AirPods connected, a timer finished, an agent finished, incoming notifications.
+- **Live activities** beside the notch: volume and brightness, charging, a running timer, a live score, and the temperature when nothing else is on.
+- **Banners** that drop out of the notch: AirPods connected, a timer finished, an agent finished, a score update, a Bluetooth battery running low, incoming notifications.
 - **Downloads** show their progress.
 - The island hides when a fullscreen app is in front, and can be hidden from screen sharing.
 
@@ -117,7 +117,7 @@ The Volume Mixer uses Core Audio process taps to change the volume of one app at
 
 - Captions use on-device speech recognition.
 - Clipboard history skips anything a password manager marks as secret.
-- Network requests: lyrics from LRCLIB, sports scores, and the speed test.
+- Network requests: lyrics from LRCLIB, weather from Open-Meteo (approximate coordinates, or the city you type), sports scores, and the speed test.
 - Calendar, camera and speech access are asked for only when you open the page that needs them.
 
 ---
@@ -152,6 +152,8 @@ Dynisland/
 │   ├── Agents.swift        AI agent status
 │   ├── Online.swift        Speed test and sports
 │   ├── Colors.swift        Color picker
+│   ├── Weather.swift       Weather
+│   ├── Bluetooth.swift     Bluetooth device batteries
 │   ├── Clipboard.swift     Clipboard history
 │   ├── Notifications.swift Notification banners
 │   ├── Settings.swift      The Settings window

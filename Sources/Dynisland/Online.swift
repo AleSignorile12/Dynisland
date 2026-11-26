@@ -168,6 +168,7 @@ final class SportsService {
         var detail: String
         var date: Date?
         var link: URL?
+        var closing = false // last minutes and within a score or two (only feeds with a game clock: ESPN)
     }
 
     var followed: [League] {
@@ -177,6 +178,12 @@ final class SportsService {
     var notchLeague: String {
         didSet { UserDefaults.standard.set(notchLeague, forKey: "sportsNotch"); Task { await refresh() } }
     }
+    /// Cards for game starts, close finishes and finals: "" off, "*" every followed league, else a league id.
+    var alertLeague: String {
+        didSet { UserDefaults.standard.set(alertLeague, forKey: "sportsAlerts"); Task { await refresh() } }
+    }
+    @ObservationIgnored var onAlert: (_ icon: String, _ title: String, _ subtitle: String) -> Void = { _, _, _ in }
+    @ObservationIgnored private var seen: [String: (state: String, closing: Bool)]? // nil until the first load, so launching doesn't alert
     var games: [Game] = []
     var failed = false
     var liveForNotch: Game? {
@@ -194,18 +201,20 @@ final class SportsService {
         let saved = d.stringArray(forKey: "sportsFollowed") ?? ["espn:basketball/nba", "euroleague:E", "euroleague:U", "espn:soccer/ita.1"]
         followed = saved.compactMap { id in Self.catalog.first { $0.id == id } }
         notchLeague = d.string(forKey: "sportsNotch") ?? ""
-        // While a live score is wanted in the closed island, keep scores fresh even with the page closed.
+        alertLeague = d.string(forKey: "sportsAlerts") ?? "*"
+        // While a live score or alerts are wanted, keep scores fresh even with the page closed.
         poller = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
-            guard let self, !notchLeague.isEmpty else { return }
+            guard let self, !notchLeague.isEmpty || !alertLeague.isEmpty else { return }
             Task { await self.refresh() }
         }
-        if !notchLeague.isEmpty { Task { await refresh() } }
+        if !notchLeague.isEmpty || !alertLeague.isEmpty { Task { await refresh() } }
     }
 
     func follow(_ l: League) { if !followed.contains(l) { followed.append(l) } }
     func unfollow(_ l: League) {
         followed.removeAll { $0 == l }
         if notchLeague == l.id { notchLeague = "" }
+        if alertLeague == l.id { alertLeague = "" }
     }
 
     func refresh() async {
@@ -220,6 +229,24 @@ final class SportsService {
         await MainActor.run {
             failed = anyFailed && all.isEmpty
             games = all.sorted { ((rank[$0.state] ?? 3), $0.date ?? .distantFuture) < ((rank[$1.state] ?? 3), $1.date ?? .distantFuture) }
+            alert(all)
+        }
+    }
+
+    /// Compares with the previous load and raises one card per change, for the leagues chosen in Settings → Scores.
+    private func alert(_ all: [Game]) {
+        let wanted = alertLeague == "*" ? followed : followed.filter { $0.id == alertLeague }
+        let shorts = Dictionary(wanted.map { ($0.short, $0.sport) }, uniquingKeysWith: { a, _ in a })
+        defer { seen = Dictionary(all.map { ($0.id, ($0.state, $0.closing)) }, uniquingKeysWith: { a, _ in a }) }
+        guard let seen, !alertLeague.isEmpty else { return }
+        let p = Prefs.shared
+        for g in all {
+            guard let sport = shorts[g.league], let before = seen[g.id] else { continue } // new ids (next matchday) don't alert
+            let match = "\(g.away.abbr) – \(g.home.abbr)"
+            let score = "\(g.away.abbr) \(g.away.score) – \(g.home.score) \(g.home.abbr)"
+            if before.state == "pre", g.state == "in", p.scoreStart { onAlert(sport.icon, "\(match) started", g.league) }
+            else if before.state == "in", g.state == "post", p.scoreFinal { onAlert(sport.icon, score, "Final · \(g.league)") }
+            else if g.state == "in", g.closing, !before.closing, p.scoreClose { onAlert(sport.icon, score, "Close finish · \(g.detail)") }
         }
     }
 
@@ -283,10 +310,12 @@ final class SportsService {
 
     private func espn(_ path: String, short: String) async -> [Game]? {
         guard let root = await json(URL(string: "https://site.api.espn.com/apis/site/v2/sports/\(path)/scoreboard")!) else { return nil }
-        return (root["events"] as? [[String: Any]] ?? []).compactMap { Self.espnGame($0, short: short) }
+        let sport = Sport(rawValue: String(path.prefix { $0 != "/" })) ?? .basketball
+        let halves = path.contains("college-basketball") // NCAA plays two halves, the NBA four quarters
+        return (root["events"] as? [[String: Any]] ?? []).compactMap { Self.espnGame($0, short: short, sport: sport, halves: halves) }
     }
 
-    private static func espnGame(_ e: [String: Any], short: String) -> Game? {
+    private static func espnGame(_ e: [String: Any], short: String, sport: Sport, halves: Bool) -> Game? {
         guard let id = e["id"] as? String,
               let comp = (e["competitions"] as? [[String: Any]])?.first,
               let teams = comp["competitors"] as? [[String: Any]],
@@ -297,8 +326,20 @@ final class SportsService {
         }
         guard let home = team("home"), let away = team("away") else { return nil }
         let link = ((e["links"] as? [[String: Any]])?.first?["href"] as? String).flatMap(URL.init)
+        // Close finish: final period, under 5 minutes left (soccer: 80th minute on), and a small margin for the sport.
+        let st = e["status"] as? [String: Any] ?? [:]
+        let period = st["period"] as? Int ?? 0, clock = st["clock"] as? Double ?? .infinity
+        let margin = abs((Int(home.score) ?? 0) - (Int(away.score) ?? 0))
+        let closing: Bool = switch sport {
+        case .basketball: period >= (halves ? 2 : 4) && clock <= 300 && margin <= 5
+        case .football: period >= 4 && clock <= 300 && margin <= 8
+        case .hockey: period >= 3 && clock <= 300 && margin <= 1
+        case .soccer: (Int((st["displayClock"] as? String ?? "").prefix { $0.isNumber }) ?? 0) >= 80 && margin <= 1
+        case .baseball: period >= 9 && margin <= 2
+        }
         return Game(id: "espn\(id)", league: short, home: home, away: away, state: status["state"] as? String ?? "pre",
-                    detail: status["shortDetail"] as? String ?? "", date: (e["date"] as? String).flatMap(parseDate), link: link)
+                    detail: status["shortDetail"] as? String ?? "", date: (e["date"] as? String).flatMap(parseDate), link: link,
+                    closing: closing && status["state"] as? String == "in")
     }
 
     // MARK: EuroLeague / EuroCup

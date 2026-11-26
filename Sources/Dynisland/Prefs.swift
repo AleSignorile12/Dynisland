@@ -50,6 +50,16 @@ final class Prefs {
     var shortBreakMinutes: Int { didSet { save() } }
     var longBreakMinutes: Int { didSet { save() } }
     var timerSound: Bool { didSet { save() } }
+    var pomodoroFocus: Bool { didSet { save() } }     // run the "Dynisland Focus On/Off" shortcuts as rounds change
+    // Weather
+    var weatherWing: Bool { didSet { save() } }       // temperature beside the notch when nothing else is showing
+    var weatherCity: String { didSet { save() } }     // "" = this Mac's location
+    // Scores
+    var scoreStart: Bool { didSet { save() } }
+    var scoreClose: Bool { didSet { save() } }
+    var scoreFinal: Bool { didSet { save() } }
+    // Bluetooth
+    var lowBatteryCards: Bool { didSet { save() } }
     // Now Playing
     var lyrics: Bool { didSet { save() } }
     var albumTint: Bool { didSet { save() } }
@@ -68,7 +78,8 @@ final class Prefs {
 
     private static let keys = ["islandHex", "accentHex", "islandSize", "bouncy", "showIsland", "clickToOpen", "keepOpenAfterClick",
                                "hoverDelay", "openDistance", "haptics", "sounds", "focusMinutes", "shortBreakMinutes", "longBreakMinutes", "timerSound",
-                               "lyrics", "albumTint", "musicActivity", "agentActivity", "agentCards", "captionSize", "captionsAuto", "hideFromSharing"]
+                               "lyrics", "albumTint", "musicActivity", "agentActivity", "agentCards", "captionSize", "captionsAuto", "hideFromSharing",
+                               "pomodoroFocus", "weatherWing", "weatherCity", "scoreStart", "scoreClose", "scoreFinal", "lowBatteryCards"]
 
     private init() {
         let d = UserDefaults.standard
@@ -97,6 +108,13 @@ final class Prefs {
         captionSize = d.object(forKey: "captionSize") as? Double ?? 19
         captionsAuto = bool("captionsAuto", false)
         hideFromSharing = bool("hideFromSharing", false)
+        pomodoroFocus = bool("pomodoroFocus", false)
+        weatherWing = bool("weatherWing", true)
+        weatherCity = d.string(forKey: "weatherCity") ?? ""
+        scoreStart = bool("scoreStart", true)
+        scoreClose = bool("scoreClose", true)
+        scoreFinal = bool("scoreFinal", true)
+        lowBatteryCards = bool("lowBatteryCards", true)
     }
 
     func setIsland(_ c: Color) { islandHex = c.darkened(max: 0.3).hex }
@@ -107,7 +125,8 @@ final class Prefs {
         let d = UserDefaults.standard
         let values: [Any] = [islandHex, accentHex, size.rawValue, bouncy, showIsland, clickToOpen, keepOpenAfterClick, hoverDelay, openDistance, haptics,
                              sounds, focusMinutes, shortBreakMinutes, longBreakMinutes, timerSound, lyrics, albumTint, musicActivity,
-                             agentActivity, agentCards, captionSize, captionsAuto, hideFromSharing]
+                             agentActivity, agentCards, captionSize, captionsAuto, hideFromSharing,
+                             pomodoroFocus, weatherWing, weatherCity, scoreStart, scoreClose, scoreFinal, lowBatteryCards]
         for (k, v) in zip(Self.keys, values) { d.set(v, forKey: k) }
         NotificationCenter.default.post(name: Self.changed, object: nil)
     }

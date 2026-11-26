@@ -28,6 +28,7 @@ final class CalendarService {
 
 struct CalendarSection: View {
     let calendar: CalendarService
+    let weather: WeatherService
     @State private var day = Calendar.current.startOfDay(for: .now)
 
     var body: some View {
@@ -37,12 +38,21 @@ struct CalendarSection: View {
             if !calendar.authorized {
                 Placeholder(icon: "calendar.badge.exclamationmark", text: "Allow Calendar access in System Settings")
             } else {
-                DayColumn(day: day, events: calendar.events(on: day))
-                DayColumn(day: next, events: calendar.events(on: next)).opacity(0.75)
+                DayColumn(day: day, events: calendar.events(on: day), weather: badge(day))
+                DayColumn(day: next, events: calendar.events(on: next), weather: badge(next)).opacity(0.75)
             }
         }
         .animation(.snappy, value: day)
         .task { await calendar.load() }
+    }
+
+    /// Forecast for today and tomorrow only (that's all that's fetched).
+    private func badge(_ d: Date) -> WeatherBadge? {
+        guard let w = weather.now else { return nil }
+        let cal = Calendar.current
+        if cal.isDateInToday(d) { return WeatherBadge(code: w.code, day: w.day, text: "\(w.temp)° · \(w.high)°/\(w.low)°" + (w.rain >= 20 ? " · \(w.rain)%" : "")) }
+        if cal.isDateInTomorrow(d) { return WeatherBadge(code: w.tomorrowCode, text: "\(w.tomorrowHigh)°/\(w.tomorrowLow)°") }
+        return nil
     }
 }
 
@@ -50,10 +60,15 @@ struct CalendarSection: View {
 struct DayColumn: View {
     let day: Date
     let events: [EKEvent]
+    var weather: WeatherBadge?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+            HStack(spacing: 6) {
+                Text(title).font(.system(size: 11, weight: .semibold)).foregroundStyle(.secondary).lineLimit(1)
+                Spacer(minLength: 0)
+                weather
+            }
             if events.isEmpty {
                 Text("No events").font(.system(size: 11)).foregroundStyle(.tertiary)
             } else {
@@ -150,7 +165,9 @@ final class TimerService {
     var end: Date?                  // set while counting down
     var pausedLeft: TimeInterval?   // set while paused
     var total: TimeInterval = 0
-    var pomodoro: Pomodoro?         // set while a focus/break cycle runs
+    var pomodoro: Pomodoro? {        // set while a focus/break cycle runs
+        didSet { if (oldValue == .focus) != (pomodoro == .focus) { FocusShortcut.set(pomodoro == .focus) } }
+    }
     var round = 1                   // focus session number; every 4th break is long
     var onDone: (_ title: String, _ subtitle: String) -> Void = { _, _ in }
 
@@ -224,6 +241,34 @@ final class TimerService {
 
     static func format(_ t: TimeInterval) -> String {
         Duration.seconds(t.rounded(.up)).formatted(.time(pattern: t >= 3600 ? .hourMinuteSecond : .minuteSecond))
+    }
+}
+
+/// macOS has no public API to switch Focus, so Pomodoro runs two Shortcuts the user makes once (Settings → Timers).
+enum FocusShortcut {
+    static let on = "Dynisland Focus On", off = "Dynisland Focus Off"
+
+    static func set(_ focus: Bool) {
+        guard Prefs.shared.pomodoroFocus else { return }
+        run(["run", focus ? on : off])
+    }
+
+    /// Which of the two shortcuts exist, for the Settings checklist.
+    static func installed() async -> Set<String> {
+        await Task.detached { Set(run(["list"], wait: true).split(separator: "\n").map(String.init)).intersection([on, off]) }.value
+    }
+
+    @discardableResult
+    private static func run(_ args: [String], wait: Bool = false) -> String {
+        let p = Process(), out = Pipe()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/shortcuts")
+        p.arguments = args
+        p.standardOutput = out
+        p.standardError = FileHandle.nullDevice
+        guard (try? p.run()) != nil, wait else { return "" }
+        let data = out.fileHandleForReading.readDataToEndOfFile()
+        p.waitUntilExit()
+        return String(decoding: data, as: UTF8.self)
     }
 }
 
@@ -461,22 +506,26 @@ enum SystemStats {
 
 struct SystemSection: View {
     let network: NetworkService
+    let bluetooth: BluetoothService
     @State private var cpu = 0.0
     @State private var memory = (used: 0.0, total: 1.0)
     @State private var battery = IslandModel.readPower()
     @State private var thermal = ProcessInfo.processInfo.thermalState
 
     var body: some View {
-        HStack(spacing: 20) {
+        HStack(spacing: bluetooth.devices.isEmpty ? 20 : 14) {
             gauge(cpu, "\(Int(cpu * 100))%", "CPU", .blue)
             gauge(memory.used / memory.total, String(format: "%.1f GB", memory.used / 1_073_741_824), "Memory", .purple)
             gauge(Double(battery.percent) / 100, "\(battery.percent)%", battery.onAC ? "Battery ⚡︎" : "Battery", .green)
-            gauge(thermalLevel, thermalName, "Thermal", thermalLevel > 0.5 ? .orange : .mint)
+            // Connected Bluetooth devices take the thermal gauge's place (there's no room for both)
+            if bluetooth.devices.isEmpty { gauge(thermalLevel, thermalName, "Thermal", thermalLevel > 0.5 ? .orange : .mint) }
+            else { BluetoothColumn(bluetooth: bluetooth) }
             Divider().frame(height: 70).overlay(.white.opacity(0.15))
             SpeedTest(network: network)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task {
+            bluetooth.refresh()
             var last = SystemStats.cpuTicks()
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1.5))

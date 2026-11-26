@@ -1,5 +1,6 @@
 import AppKit
 import AVFoundation
+import CoreLocation
 import EventKit
 import ServiceManagement
 import Speech
@@ -9,7 +10,7 @@ import UniformTypeIdentifiers
 // MARK: Window
 
 enum SettingsPane: String, CaseIterable, Identifiable {
-    case general, appearance, modules, timers, nowPlaying, agents, scores, captions, permissions
+    case general, appearance, modules, timers, nowPlaying, agents, scores, weather, captions, permissions
     var id: Self { self }
     var title: String {
         switch self {
@@ -20,6 +21,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .nowPlaying: "Now Playing"
         case .agents: "AI Agents"
         case .scores: "Scores"
+        case .weather: "Weather"
         case .captions: "Captions & Prompter"
         case .permissions: "Permissions"
         }
@@ -33,6 +35,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .nowPlaying: "music.note"
         case .agents: "sparkles"
         case .scores: "sportscourt.fill"
+        case .weather: "cloud.sun.fill"
         case .captions: "captions.bubble.fill"
         case .permissions: "hand.raised.fill"
         }
@@ -45,6 +48,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .nowPlaying: .pink
         case .agents: .purple
         case .scores: .green
+        case .weather: .cyan
         case .captions: .teal
         case .permissions: .indigo
         }
@@ -75,7 +79,7 @@ private struct SettingsRoot: View {
         NavigationSplitView {
             List(selection: $pane) {
                 Section { ForEach([SettingsPane.general, .appearance, .modules]) { row($0) } }
-                Section("Module settings") { ForEach([SettingsPane.timers, .nowPlaying, .agents, .scores, .captions]) { row($0) } }
+                Section("Module settings") { ForEach([SettingsPane.timers, .nowPlaying, .agents, .scores, .weather, .captions]) { row($0) } }
                 Section { row(.permissions) }
             }
             .navigationSplitViewColumnWidth(min: 190, ideal: 200, max: 240)
@@ -90,6 +94,7 @@ private struct SettingsRoot: View {
                 case .nowPlaying: NowPlayingSettings()
                 case .agents: AgentSettings(agents: model.agents)
                 case .scores: ScoresSettings(sports: model.sports)
+                case .weather: WeatherSettings(weather: model.weather)
                 case .captions: CaptionSettings(captions: model.captions, prompter: model.prompter)
                 case .permissions: PermissionsSettings()
                 }
@@ -128,6 +133,7 @@ private struct GeneralSettings: View {
                 Toggle("Show the island", isOn: $prefs.showIsland)
                 Toggle("Launch Dynisland at login", isOn: Binding(get: { atLogin }, set: setLogin))
                 Toggle("Hide the island from screen sharing", isOn: $prefs.hideFromSharing)
+                Toggle("Warn when a Bluetooth device's battery is low", isOn: $prefs.lowBatteryCards)
             } footer: {
                 if !prefs.showIsland { note("Hidden. Open Dynisland again from Finder or Spotlight to get back here.") }
                 if loginError { note("macOS refused the login item. Move Dynisland to Applications and try again.") }
@@ -452,7 +458,50 @@ private struct TimerSettings: View {
             } footer: {
                 note("Four focus sessions, a short break after each, a long break after the fourth. Changes apply to the next phase.")
             }
+            Section {
+                Toggle("Turn on Focus during focus sessions", isOn: $prefs.pomodoroFocus)
+                if prefs.pomodoroFocus {
+                    ForEach([FocusShortcut.on, FocusShortcut.off], id: \.self) { name in
+                        Label(name, systemImage: shortcuts.contains(name) ? "checkmark.circle.fill" : "circle.dashed")
+                            .foregroundStyle(shortcuts.contains(name) ? .green : .secondary)
+                    }
+                    HStack {
+                        Button("Open Shortcuts") { NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/Shortcuts.app")) }
+                        Button("Check Again") { Task { shortcuts = await FocusShortcut.installed() } }
+                    }
+                }
+            } footer: {
+                note("macOS doesn't let apps switch Focus directly, so Dynisland runs two shortcuts you make once in the Shortcuts app: \"\(FocusShortcut.on)\" with the action Set Focus → Do Not Disturb → On, and \"\(FocusShortcut.off)\" with Set Focus → Do Not Disturb → Off. Breaks and stopping the timer run the second one.")
+            }
             Section { Toggle("Play a sound when a timer ends", isOn: $prefs.timerSound) }
+        }
+        .formStyle(.grouped)
+        .task(id: prefs.pomodoroFocus) { if prefs.pomodoroFocus { shortcuts = await FocusShortcut.installed() } }
+    }
+    @State private var shortcuts: Set<String> = []
+}
+
+private struct WeatherSettings: View {
+    let weather: WeatherService
+    @Bindable var prefs = Prefs.shared
+    @State private var city = Prefs.shared.weatherCity
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Show the temperature beside the notch", isOn: $prefs.weatherWing)
+                TextField("City", text: $city, prompt: Text("Your location"))
+                    .onSubmit { prefs.weatherCity = city }
+                if let w = weather.now {
+                    LabeledContent(w.place.isEmpty ? "Now" : w.place) {
+                        WeatherBadge(code: w.code, day: w.day, text: "\(w.temp)° · high \(w.high)° · low \(w.low)°")
+                    }
+                } else if !weather.status.isEmpty {
+                    note(weather.status)
+                }
+            } footer: {
+                note("The wing shows when nothing more important is beside the notch; today's and tomorrow's forecast also show on the Calendar page. Leave City empty to use this Mac's location (macOS asks once), or type a city and press Return. Weather comes from open-meteo.com, which receives the approximate coordinates. Updated every 30 minutes.")
+            }
         }
         .formStyle(.grouped)
     }
@@ -562,6 +611,7 @@ private struct AgentRow: View {
 
 private struct ScoresSettings: View {
     let sports: SportsService
+    @Bindable var prefs = Prefs.shared
     @State private var query = ""
 
     var body: some View {
@@ -595,6 +645,23 @@ private struct ScoresSettings: View {
                     Divider()
                     ForEach(sports.followed) { Text($0.name).tag($0.id) }
                 }
+            }
+            Section {
+                Picker("Score cards for", selection: Binding(get: { sports.alertLeague }, set: { sports.alertLeague = $0 })) {
+                    Text("Nothing").tag("")
+                    Text("Every followed league").tag("*")
+                    Divider()
+                    ForEach(sports.followed.filter { !$0.id.hasPrefix("link:") }) { Text($0.name).tag($0.id) }
+                }
+                if !sports.alertLeague.isEmpty {
+                    Toggle("When a game starts", isOn: $prefs.scoreStart)
+                    Toggle("Close finish in the last minutes", isOn: $prefs.scoreClose)
+                    Toggle("Final score", isOn: $prefs.scoreFinal)
+                }
+            } header: {
+                Text("Alerts")
+            } footer: {
+                note("A card drops from the notch. Scores are checked every minute. Close finishes need a game clock, which only the ESPN leagues have (not EuroLeague, EuroCup or LBA).")
             }
             ForEach(Sport.allCases) { sport in
                 Section {
@@ -688,6 +755,7 @@ private struct PermissionsSettings: View {
                     AXIsProcessTrusted(), "Privacy_Accessibility")
                 row("Camera", "Mirror.", AVCaptureDevice.authorizationStatus(for: .video) == .authorized, "Privacy_Camera")
                 row("Calendars", "Calendar page.", EKEventStore.authorizationStatus(for: .event) == .fullAccess, "Privacy_Calendars")
+                row("Location", "Weather, unless you type a city.", [.authorized, .authorizedAlways].contains(CLLocationManager().authorizationStatus), "Privacy_LocationServices")
                 row("Speech Recognition", "Live captions.", SFSpeechRecognizer.authorizationStatus() == .authorized, "Privacy_SpeechRecognition")
                 row("System Audio Recording", "Volume mixer and live captions.", nil, "Privacy_AudioCapture")
                 row("Automation", "Dark mode toggle in Quick Controls.", nil, "Privacy_Automation")

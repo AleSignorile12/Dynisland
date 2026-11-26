@@ -33,7 +33,7 @@ struct NotchShape: Shape {
 
 /// What the collapsed island shows beside the notch, most important first.
 enum Activity: Equatable {
-    case hud(HUD), charging(Int), timer, agent, score, music, download, shelf, none
+    case hud(HUD), charging(Int), timer, agent, score, music, download, shelf, weather, none
     /// Same kind = same wing size. Volume steps only move the bar, they must not re-spring the whole island.
     var kind: Int {
         switch self {
@@ -45,6 +45,7 @@ enum Activity: Equatable {
         case .music: 4
         case .download: 5
         case .shelf: 6
+        case .weather: 9
         case .none: 7
         }
     }
@@ -63,6 +64,7 @@ struct IslandView: View {
         if model.media.playing, Prefs.shared.musicActivity { return .music }
         if !model.downloads.isEmpty { return .download }
         if !model.shelf.isEmpty { return .shelf }
+        if Prefs.shared.weatherWing, model.weather.now != nil { return .weather }
         return .none
     }
 
@@ -74,6 +76,7 @@ struct IslandView: View {
         let want: CGFloat = switch activity {
         case .none: 0
         case .hud, .charging, .timer, .score: 74
+        case .weather: 46
         default: 38
         }
         let room = min(want, model.sideLimit)
@@ -139,6 +142,7 @@ struct IslandView: View {
         case .music: Artwork(image: model.media.artwork, size: 20, radius: 5)
         case .download: Image(systemName: "arrow.down").font(.system(size: 12, weight: .bold)).foregroundStyle(.blue)
         case .shelf: ShelfStack(items: model.shelf)
+        case .weather: if let w = model.weather.now { Image(systemName: WeatherService.symbol(w.code, day: w.day)).symbolRenderingMode(.multicolor).font(.system(size: 13)) }
         case .none: EmptyView()
         }
     }
@@ -164,6 +168,7 @@ struct IslandView: View {
         case .download:
             ProgressRing(fraction: model.downloads.map(\.fraction).reduce(0, +) / Double(model.downloads.count)).frame(width: 16, height: 16)
         case .shelf: Text("\(model.shelf.count)").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+        case .weather: if let w = model.weather.now { Text("\(w.temp)°").font(.system(size: 13, weight: .semibold).monospacedDigit()) }
         case .none: EmptyView()
         }
     }
@@ -226,11 +231,11 @@ struct IslandView: View {
                 if !model.downloads.isEmpty { DownloadsView(items: model.downloads).frame(width: 180) }
             }
         case .media: MediaSection(media: model.media, audio: model.audio).opens { model.openClickApp(for: s) }
-        case .calendar: CalendarSection(calendar: model.calendar).opens { model.openClickApp(for: s) }
+        case .calendar: CalendarSection(calendar: model.calendar, weather: model.weather).opens { model.openClickApp(for: s) }
         case .timer: TimerSection(timer: model.timer).opens { model.openClickApp(for: s) }
         case .mirror: MirrorSection(audio: model.audio).opens { model.openClickApp(for: s) }
         case .controls: ControlsSection(controls: model.controls, audio: model.audio).opens { model.openClickApp(for: s) }
-        case .system: SystemSection(network: model.network).opens { model.openClickApp(for: s) }
+        case .system: SystemSection(network: model.network, bluetooth: model.bluetooth).opens { model.openClickApp(for: s) }
         case .mixer: MixerSection(mixer: model.mixer).opens { model.openClickApp(for: s) }
         case .agents: AgentsSection(agents: model.agents) { model.open($0) }
         case .sports: SportsSection(sports: model.sports).opens { model.openClickApp(for: s) }

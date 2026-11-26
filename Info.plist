@@ -24,6 +24,10 @@
 	<string>The Mixer changes the volume of individual apps.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>The Calendar section shows your upcoming events.</string>
+	<key>NSLocationUsageDescription</key>
+	<string>Weather beside the notch and on the Calendar page uses your approximate location.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Weather beside the notch and on the Calendar page uses your approximate location.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Live captions turn the audio your Mac plays into subtitles, on device.</string>
 	<key>NSCameraUsageDescription</key>
