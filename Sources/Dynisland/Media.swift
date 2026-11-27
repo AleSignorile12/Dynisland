@@ -30,7 +30,10 @@ final class MediaService {
         min(duration, elapsedAt.elapsed + (playing ? now.timeIntervalSince(elapsedAt.date) : 0))
     }
 
-    func lyric(at t: Double) -> String? { Prefs.shared.lyrics ? lyrics.last { $0.time <= t }?.line : nil }
+    /// LRC stamps mark when a line starts being sung; showing it a moment early means it's readable by then
+    /// (the new line also takes a fraction of a second to fade in).
+    static let lyricLead = 0.3
+    func lyric(at t: Double) -> String? { Prefs.shared.lyrics ? lyrics.last { $0.time <= t + Self.lyricLead }?.line : nil }
 
     func seek(to t: Double) {
         try? perl(["NP_MODE": "seek", "NP_TIME": String(t)])?.run()
@@ -84,7 +87,7 @@ final class MediaService {
         }
         playing = j["playing"] as? Bool ?? false
         duration = j["duration"] as? Double ?? 0
-        elapsedAt = (j["elapsed"] as? Double ?? 0, Date())
+        elapsedAt = (j["elapsed"] as? Double ?? 0, (j["at"] as? Double).map(Date.init(timeIntervalSince1970:)) ?? Date())
         if let b64 = j["artwork"] as? String, let d = Data(base64Encoded: b64) { artwork = NSImage(data: d) }
     }
 
@@ -231,11 +234,11 @@ struct MediaSection: View {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(media.title).font(.system(size: 14, weight: .semibold)).lineLimit(1)
                         Text(media.artist).font(.system(size: 12)).foregroundStyle(.secondary).lineLimit(1)
-                        TimelineView(.periodic(from: .now, by: 0.5)) { ctx in
+                        TimelineView(.periodic(from: .now, by: 0.1)) { ctx in // 10×/s so a line is at most 0.1 s late
                             let line = media.lyric(at: scrub ?? media.elapsed(at: ctx.date)) ?? ""
                             Text(line.isEmpty ? " " : line).font(.system(size: 11, weight: .medium)).foregroundStyle(.white.opacity(0.85))
                                 .lineLimit(1).id(line).transition(.blurReplace)
-                                .animation(.smooth, value: line)
+                                .animation(.smooth(duration: 0.2), value: line)
                         }
                     }
                     Spacer(minLength: 8)

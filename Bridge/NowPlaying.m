@@ -32,6 +32,7 @@ static void emit(GetInfoFn get) {
             out[@"album"] = info[@"kMRMediaRemoteNowPlayingInfoAlbum"] ?: @"";
             out[@"duration"] = info[@"kMRMediaRemoteNowPlayingInfoDuration"] ?: @0;
             out[@"elapsed"] = @(elapsed);
+            out[@"at"] = @(NSDate.date.timeIntervalSince1970); // when `elapsed` was true: the app adds the time the line spent in the pipe
             out[@"playing"] = @(rate > 0);
             NSString *key = [title stringByAppendingString:artist];
             NSData *art = info[@"kMRMediaRemoteNowPlayingInfoArtworkData"];
